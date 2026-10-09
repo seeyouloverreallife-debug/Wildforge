@@ -1,0 +1,47 @@
+:root { --bg:#14201a; --panel:#1f2f27; --ink:#f1ece0; --muted:#b9c2b4; --accent:#ffb347; --line:#5b7a67; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; overscroll-behavior:none;
+  font-family: "Noto Sans Thai", "Sarabun", "Leelawadee UI", Tahoma, system-ui, sans-serif; }
+#app { position:fixed; inset:0; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+#game { position:absolute; inset:0; touch-action:none; }
+#game canvas { display:block; touch-action:none; }
+[hidden] { display:none !important; }
+
+#hud { position:absolute; left:0; right:0; top:0; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left)); pointer-events:none; }
+#hud .bars { display:flex; flex-direction:column; gap:4px; width:min(260px, 38vw); }
+.bar-row { display:flex; align-items:center; gap:6px; font-size:13px; }
+.bar-label { width:32px; font-weight:700; }
+.bar { flex:1; height:12px; background:#0008; border:2px solid var(--ink); border-radius:3px; overflow:hidden; }
+.fill { height:100%; width:100%; transition:none; }
+.fill.hp { background:repeating-linear-gradient(45deg,#e8604c 0 6px,#c24633 6px 12px); }
+.fill.st { background:#4fb0e8; }
+.bar-num { width:30px; text-align:right; font-variant-numeric:tabular-nums; }
+.timer { font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px #000; padding-top:2px; }
+.hud-btn { pointer-events:auto; width:48px; height:48px; border-radius:10px; border:2px solid var(--ink); background:#000a; color:var(--ink); font-size:16px; touch-action:manipulation; }
+
+#debug { position:absolute; left:calc(12px + env(safe-area-inset-left)); top:80px; margin:0; padding:6px 8px; background:#000b; color:#9f9; font:11px/1.35 monospace; pointer-events:none; white-space:pre; }
+
+#touch { position:absolute; inset:0; pointer-events:none; }
+#joy-zone { position:absolute; left:0; top:64px; bottom:0; width:48%; pointer-events:auto; touch-action:none; }
+#joy-base { display:none; position:fixed; width:120px; height:120px; margin:-60px 0 0 -60px; border:3px solid #fff8; border-radius:50%; background:#ffffff18; pointer-events:none; }
+#joy-knob { position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%; background:#fffc; border:3px solid #000a; transform:translate(-50%,-50%); }
+.act-btn { position:absolute; pointer-events:auto; touch-action:none; border:3px solid var(--ink); border-radius:50%; background:#000a; color:var(--ink);
+  font:700 16px/1 inherit; font-family:inherit; width:72px; height:72px; }
+.act-btn.big { width:92px; height:92px; right:calc(20px + env(safe-area-inset-right)); bottom:calc(20px + env(safe-area-inset-bottom)); font-size:18px; background:#7a2d1fcc; }
+#btn-dodge { right:calc(124px + env(safe-area-inset-right)); bottom:calc(20px + env(safe-area-inset-bottom)); background:#1f4f7acc; }
+.act-btn.down { background:var(--accent); color:#000; }
+
+.overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#000c; padding:16px; z-index:10; }
+.overlay#overlay-settings { z-index:11; } .overlay#overlay-rotate { z-index:12; }
+.panel { background:var(--panel); border:2px solid var(--line); border-radius:12px; padding:18px 22px; width:min(380px, 100%); max-height:100%; overflow:auto; }
+.panel h1 { margin:0 0 8px; font-size:22px; }
+.muted { color:var(--muted); font-size:14px; margin:4px 0 12px; }
+.stack { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+button { font:600 16px/1 inherit; font-family:inherit; min-height:48px; padding:0 16px; border-radius:10px; border:2px solid var(--line); background:#2c4338; color:var(--ink); cursor:pointer; }
+button.primary { background:var(--accent); color:#1a1206; border-color:#fff3; }
+button:focus-visible, input:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+.field { display:block; margin:12px 0; font-size:16px; }
+.field input[type=range] { width:100%; min-height:32px; }
+.field.check { display:flex; gap:10px; align-items:center; min-height:48px; }
+.field.check input { width:24px; height:24px; }
