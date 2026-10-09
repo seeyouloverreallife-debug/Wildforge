@@ -6,3 +6,4 @@ qa-artifacts/tmp/
 *.zip
 *.webm
 qa-artifacts/tmp/
+dist-single/
