@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { EMBER_GECKO, type MoveDef, type PartId } from '../../data/monsters';
+import { type MoveDef, type PartId } from '../../data/monsters';
 import { ARENA, PLAYER, SHAKE_TABLE, SIM, SOFT_LOCK_RANGE, type ShakeKind } from '../../data/tuning';
 import { WEAPONS } from '../../data/weapons';
 import { FixedStepper } from '../../domain/fixedStep';
+import { BASIC_BUILD, type PlayerBuild } from '../../domain/build';
 import {
   abandonHunt, createHunt, cycleTarget, drainEvents, selectedTargetPos, stepHunt, type HuntEvent, type HuntResult, type HuntState,
 } from '../../domain/hunt';
@@ -40,8 +41,8 @@ export class ArenaScene extends Phaser.Scene {
   private prevPos: { x: number; y: number } = { ...ARENA.spawn };
   private dyn!: Phaser.GameObjects.Graphics;
   private label!: Phaser.GameObjects.Text;
-  private ghosts: Array<{ x: number; y: number; age: number }> = [];
-  private fx: Fx[] = [];
+  ghosts: Array<{ x: number; y: number; age: number }> = [];
+  fx: Fx[] = [];
   private hitFlash = 0;
   private seedCounter = 1;
   private camX: number = ARENA.spawn.x;
@@ -54,7 +55,7 @@ export class ArenaScene extends Phaser.Scene {
 
   constructor() { super('Arena'); }
 
-  init(deps: SceneDeps): void { this.deps = deps; this.hunt = createHunt(this.nextSeed()); }
+  init(deps: SceneDeps): void { this.deps = deps; this.hunt = createHunt(this.nextSeed(), BASIC_BUILD); }
 
   private nextSeed(): number { return (Date.now() & 0xffff) * 31 + this.seedCounter++; }
 
@@ -78,15 +79,16 @@ export class ArenaScene extends Phaser.Scene {
     this.deps.input.reset();
   }
 
-  /** New hunt (new huntId + seed). A hunt still ACTIVE is abandoned — no result is paid out for it. */
-  restart(): void {
+  /** Replace the current hunt with a fresh one (new huntId + seed). A hunt still ACTIVE is abandoned — no result is paid out for it. */
+  newHunt(build: PlayerBuild): HuntState {
     abandonHunt(this.hunt);
-    this.hunt = createHunt(this.nextSeed());
+    this.hunt = createHunt(this.nextSeed(), build);
     this.prevPos = { ...ARENA.spawn };
     this.ghosts.length = 0; this.fx.length = 0; this.hitFlash = 0; this.reported = false;
     this.stepper.reset();
     this.camX = ARENA.spawn.x; this.camY = ARENA.spawn.y;
     this.deps.input.reset();
+    return this.hunt;
   }
 
   private zoom(): number {
@@ -142,7 +144,7 @@ export class ArenaScene extends Phaser.Scene {
         const first = i === 0;
         stepHunt(h, {
           ...emptyIntent(), moveX: raw.moveX, moveY: raw.moveY, aim: aim ? { x: aim.x, y: aim.y } : null,
-          attackHeld: raw.attackHeld, attackPressed: first && raw.attackPressed, dodgePressed: first && raw.dodgePressed,
+          attackHeld: raw.attackHeld, attackPressed: first && raw.attackPressed, dodgePressed: first && raw.dodgePressed, skillPressed: first && raw.skillPressed,
         }, this.stepper.dt);
         if (h.player.dodge && h.player.dodge.t === 0) this.shake('dodge');
         this.trackGhosts();
@@ -179,6 +181,7 @@ export class ArenaScene extends Phaser.Scene {
           this.addFx({ x: at.x, y: at.y, age: 0, life: 0.5, kind: 'break', r: 60 }); this.shake('partBreak');
           break;
         }
+        case 'dot_tick': { const z = this.hunt.zone; this.addFx({ x: m.pos.x, y: m.pos.y, age: 0, life: 0.25, kind: e.source === 'fire' && z ? 'break' : 'hit', r: 40 }); break; }
         case 'player_hurt': this.shake('playerHurt'); break;
         case 'monster_stagger': this.shake('monsterStagger'); break;
         case 'monster_death': this.shake('monsterDeath'); break;
@@ -222,6 +225,7 @@ export class ArenaScene extends Phaser.Scene {
     const g = this.dyn.clear();
     const h = this.hunt;
     this.drawTelegraph(g);
+    this.drawZoneAndBleed(g);
     this.drawMonster(g);
     this.drawPlayer(g);
     for (const f of this.fx) {
@@ -234,6 +238,24 @@ export class ArenaScene extends Phaser.Scene {
     } else if (m.phase === 'stagger') {
       this.label.setText('ชะงัก!').setPosition(m.pos.x, m.pos.y - m.def.bodyRadius - 24).setVisible(true);
     } else this.label.setVisible(false);
+  }
+
+  private drawZoneAndBleed(g: Phaser.GameObjects.Graphics): void {
+    const z = this.hunt.zone;
+    if (z) {
+      const fade = 1 - z.age / z.duration;
+      g.fillStyle(0xff7a1a, 0.18 + 0.2 * fade).fillCircle(z.x, z.y, z.r);
+      g.lineStyle(4, 0xffb347, 0.9).strokeCircle(z.x, z.y, z.r);
+      g.lineStyle(2, 0xffb347, 0.6).strokeCircle(z.x, z.y, z.r * 0.55);
+    }
+    const b = this.hunt.bleed, m = this.hunt.monster;
+    if (b && m.phase !== 'dead') {
+      g.lineStyle(3, 0xd1342a, 0.9);
+      for (let i = 0; i < 3; i++) { // drip marks on the body
+        const a = (i * 2.1) + b.age * 1.5;
+        g.strokeCircle(m.pos.x + Math.cos(a) * m.def.bodyRadius * 0.5, m.pos.y + Math.sin(a) * m.def.bodyRadius * 0.5, 5);
+      }
+    }
   }
 
   private drawPlayer(g: Phaser.GameObjects.Graphics): void {
@@ -346,5 +368,5 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   /** QA hook. */
-  get debugState() { return { hunt: this.hunt, EMBER_GECKO }; }
+  get debugState() { return { hunt: this.hunt }; }
 }

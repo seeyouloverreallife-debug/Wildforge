@@ -1,11 +1,12 @@
 import { EMBER_GECKO, STAGGER, VULNERABLE_MULT, type MoveId, type PartId } from '../data/monsters';
 import { ARENA, HUNT_TIME_LIMIT } from '../data/tuning';
 import { WEAPONS, type WeaponDef } from '../data/weapons';
-import { sectorHitsCircle } from './geometry';
+import { BASIC_BUILD, type PlayerBuild } from './build';
+import { circlesOverlap, sectorHitsCircle } from './geometry';
 import {
   createMonster, markMonsterHitLanded, partWorldPos, startStagger, stepMonster, type MonsterEvent, type MonsterState,
 } from './monster';
-import { activeAttackShape, createPlayer, damagePlayer, stepPlayer, type Intent, type PlayerState } from './player';
+import { activeAttackShape, attackPhase, createPlayer, damagePlayer, stepPlayer, type Intent, type PlayerState } from './player';
 import type { Vec } from './vec';
 import { defaultWorld, type World } from './world';
 
@@ -19,6 +20,8 @@ export type HuntEvent =
   | { type: 'part_break'; part: PartId }
   | { type: 'monster_stagger'; cause: 'part_break' | 'meter' }
   | { type: 'telegraph'; move: MoveId }
+  | { type: 'skill_used'; skill: string }
+  | { type: 'dot_tick'; source: 'bleed' | 'fire'; damage: number }
   | { type: 'monster_death' }
   | { type: 'player_down' }
   | { type: 'terminal'; status: HuntStatus };
@@ -37,8 +40,12 @@ export interface HuntState {
   seed: number;
   status: HuntStatus;
   elapsed: number;
+  build: PlayerBuild;
   player: PlayerState;
   monster: MonsterState;
+  /** damage-over-time: body damage only, refresh (never stack) on reuse (§7.4) */
+  bleed: { dps: number; duration: number; age: number; nextPulse: number; carry: number } | null;
+  zone: { x: number; y: number; r: number; tick: number; duration: number; age: number; nextTick: number; carry: number } | null;
   baseWorld: World;
   selected: Target;
   movesSeen: MoveId[];
@@ -50,11 +57,12 @@ export interface HuntState {
 
 let huntCounter = 0;
 
-export function createHunt(seed: number): HuntState {
+export function createHunt(seed: number, build: PlayerBuild = BASIC_BUILD): HuntState {
   huntCounter++;
   const baseWorld = defaultWorld();
   return {
     huntId: `hunt-${huntCounter}-${seed}`, seed, status: 'ACTIVE', elapsed: 0,
+    build, bleed: null, zone: null,
     player: createPlayer(ARENA.spawn),
     monster: createMonster(EMBER_GECKO, { x: 800, y: 340 }, seed),
     baseWorld, selected: 'body', movesSeen: [], lastResolvedAttackId: 0, events: [], result: null,
@@ -97,7 +105,7 @@ function worldWithMonster(h: HuntState): World {
 /** Player's swing vs monster regions. One attackId resolves at most once (body + one part). */
 export function resolvePlayerAttack(h: HuntState, weapon: WeaponDef = WEAPONS.fang_cleaver): void {
   const m = h.monster;
-  const shape = activeAttackShape(h.player, weapon);
+  const shape = activeAttackShape(h.player, weapon, h.build);
   if (!shape || m.phase === 'dead' || shape.attackId === h.lastResolvedAttackId) return;
 
   const hits = (c: Vec, r: number) => sectorHitsCircle(shape.origin, shape.facing, shape.range, shape.arcRad, c, r);
@@ -106,7 +114,9 @@ export function resolvePlayerAttack(h: HuntState, weapon: WeaponDef = WEAPONS.fa
   if (!hitBody) return;
   h.lastResolvedAttackId = shape.attackId;
 
-  const pre = weapon.damage * (m.phase === 'recovery' ? VULNERABLE_MULT : 1);
+  const skill = shape.kind === 'skill' ? h.build.skill : null;
+  const base = skill?.hit ? skill.hit.damage : weapon.damage * h.build.normalDamageMult; // secondary multiplier: normal attacks only
+  const pre = base * (m.phase === 'recovery' ? VULNERABLE_MULT : 1);
   const bodyDamage = Math.round(pre);
   m.hp = Math.max(0, m.hp - bodyDamage);
 
@@ -130,7 +140,8 @@ export function resolvePlayerAttack(h: HuntState, weapon: WeaponDef = WEAPONS.fa
 
   // Stagger meter (§9): normal hit +5, no gain while staggered.
   m.sinceHit = 0;
-  if (m.phase !== 'stagger') m.staggerMeter += STAGGER.hit;
+  if (m.phase !== 'stagger') m.staggerMeter += skill?.hit ? skill.hit.stagger : STAGGER.hit;
+  if (skill?.bleed) h.bleed = { dps: skill.bleed.dps, duration: skill.bleed.duration, age: 0, nextPulse: 1, carry: 0 }; // refresh, never stack
 
   // Resolve break BEFORE death so a killing blow still pays the part bonus (§10).
   if (target && m.partHp[target] <= 0 && !m.broken.includes(target)) {
@@ -149,12 +160,61 @@ export function resolvePlayerAttack(h: HuntState, weapon: WeaponDef = WEAPONS.fa
   }
 }
 
+/** Skill effects that happen once when the skill reaches its active frames. */
+function fireSkillEffects(h: HuntState): void {
+  const a = h.player.attack;
+  if (!a || a.kind !== 'skill' || a.fired || attackPhase(h.player) !== 'active') return;
+  a.fired = true;
+  const sk = h.build.skill;
+  h.events.push({ type: 'skill_used', skill: sk.id });
+  if (sk.zone) {
+    const d = sk.zone.offset;
+    h.zone = {
+      x: h.player.pos.x + Math.cos(a.facing) * d, y: h.player.pos.y + Math.sin(a.facing) * d, r: sk.zone.radius,
+      tick: sk.zone.tick, duration: sk.zone.duration, age: 0, nextTick: 1, carry: 0,
+    }; // a second cast replaces the first instance
+  }
+}
+
+/** DOT hits body only: no part damage, no stagger, no vulnerability bonus. Fractional per-tick values carry over. */
+function dotHit(h: HuntState, source: 'bleed' | 'fire', amount: number, carryOwner: { carry: number }): void {
+  const m = h.monster;
+  if (m.phase === 'dead') return;
+  carryOwner.carry += amount;
+  const whole = Math.floor(carryOwner.carry + 1e-9);
+  carryOwner.carry -= whole;
+  m.hp = Math.max(0, m.hp - whole);
+  h.events.push({ type: 'dot_tick', source, damage: whole });
+  if (m.hp <= 0) { m.phase = 'dead'; h.events.push({ type: 'monster_death' }); }
+}
+
+function stepDamageOverTime(h: HuntState, dt: number): void {
+  const b = h.bleed;
+  if (b) {
+    b.age += dt;
+    while (b.nextPulse <= b.duration && b.age >= b.nextPulse - 1e-9) { dotHit(h, 'bleed', b.dps, b); b.nextPulse++; }
+    if (b.age >= b.duration - 1e-9) h.bleed = null;
+  }
+  const z = h.zone;
+  if (z) {
+    z.age += dt;
+    while (z.nextTick <= z.duration && z.age >= z.nextTick - 1e-9) {
+      // only a monster standing in the zone at that moment is hurt; nothing sticks to it afterwards
+      if (circlesOverlap({ x: z.x, y: z.y }, z.r, h.monster.pos, h.monster.def.bodyRadius)) dotHit(h, 'fire', z.tick, z);
+      z.nextTick++;
+    }
+    if (z.age >= z.duration - 1e-9) h.zone = null;
+  }
+}
+
 export function stepHunt(h: HuntState, intent: Intent, dt: number): void {
   if (h.status !== 'ACTIVE') return;
   h.elapsed += dt;
 
-  stepPlayer(h.player, intent, dt, worldWithMonster(h));
+  stepPlayer(h.player, intent, dt, worldWithMonster(h), WEAPONS.fang_cleaver, h.build);
+  fireSkillEffects(h);
   resolvePlayerAttack(h);
+  stepDamageOverTime(h, dt);
 
   if (h.monster.phase === 'dead') { finishHunt(h, 'SUCCESS'); return; } // killing blow beats a same-tick monster hit
 

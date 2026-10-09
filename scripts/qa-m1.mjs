@@ -25,7 +25,7 @@ async function open(viewport, { video = false } = {}) {
   await page.waitForFunction(() => window.__wildforge?.hunt);
   return { ctx, page };
 }
-const start = (page) => page.click('#btn-start', { timeout: 3000 });
+const start = async (page) => { await page.click('#btn-hunt', { timeout: 3000 }); await page.click('#btn-start', { timeout: 3000 }); };
 const rectsOk = async (page, label, vp) => {
   const boxes = await page.evaluate(() => ['btn-attack', 'btn-dodge', 'btn-part', 'btn-pause'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return { id, w: r.width, h: r.height, l: r.left, t: r.top, r: r.right, b: r.bottom }; }));
   const ov = (a, b) => !(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t);
@@ -55,7 +55,7 @@ try {
     console.log(`attempt ${attempts}: ${s.st} in sim ${s.el.toFixed(0)}s (wall ${((Date.now() - t0) / 1000).toFixed(0)}s) hp=${s.hp} broken=${s.broken} dodges=${bot.dodges}`);
     await page.screenshot({ path: `qa-artifacts/m1-results-${outcome}.png` });
     const title = await page.textContent('#results-title');
-    rec(`A${attempts}-results-overlay-matches-status`, (outcome === 'success') === (title === 'ล่าสำเร็จ!') && (await page.isVisible('#overlay-results')), title);
+    rec(`A${attempts}-results-overlay-matches-status`, (outcome === 'success') === (title === 'ล่าสำเร็จ!') && (await page.isVisible('#screen-results')), title);
     const v = page.video();
     await ctx.close();
     if (outcome === 'success') { winLog = log; clip = 'qa-artifacts/m1-hunt-win.webm'; await v.saveAs(clip); }

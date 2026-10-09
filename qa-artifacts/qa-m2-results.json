@@ -1,0 +1,277 @@
+[
+ {
+  "id": "fresh-save-base-screen",
+  "ok": true,
+  "note": "nothing written until first action"
+ },
+ {
+  "id": "hunt1-success-rewards-paid-in-memory",
+  "ok": true,
+  "note": "{\"fang\":0,\"heat_bladder\":3,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0} | ผล: เสร็จแล้ว — ล่ากิ้งก่าถุงไฟ / เวลา: 0:03 / วัสดุหลัก: ถุงความร้อน ×2 / โบนัสส่วนที่ทำลาย: ถุงไฟ → ถุงความร้อน ×1 / Research +1 / ส่วนที่ทำลาย: ถุงไฟ / ท่าที่เห็น: กัดพุ่ง"
+ },
+ {
+  "id": "hunt1-results-say-saved",
+  "ok": true
+ },
+ {
+  "id": "hunt1-persisted-and-pending-cleared",
+  "ok": true,
+  "note": "rev=2"
+ },
+ {
+  "id": "Q06-replayed-result-pays-once",
+  "ok": true
+ },
+ {
+  "id": "Q06-reload-after-win-materials-once",
+  "ok": true
+ },
+ {
+  "id": "hunt2-success",
+  "ok": true,
+  "note": "{\"fang\":0,\"heat_bladder\":6,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0}"
+ },
+ {
+  "id": "craft-shows-have/need",
+  "ok": true,
+  "note": "โมดูลถุงไฟ — ยังไม่มีสกิล (ช่องหลัก): ถุงไฟ • แรง 30 • คูลดาวน์ 10s — วางพื้นที่ไฟข้างหน้า 3 วินาทีความสามารถติดตัว (ช่องเสริม): สกิลคูลดาวน์เร็วขึ้นถุงความร้อน มี 6/4สร้าง (ใช้ 4)ปักหมุดสูตร"
+ },
+ {
+  "id": "pin-recipe-saved",
+  "ok": true
+ },
+ {
+  "id": "Q07-double-tap-craft-spends-once",
+  "ok": true,
+  "note": "{\"ember\":{\"tier\":1}} hb=2"
+ },
+ {
+  "id": "Q07-reload-after-craft-keeps-module-and-count",
+  "ok": true
+ },
+ {
+  "id": "base-shows-pinned-progress",
+  "ok": true
+ },
+ {
+  "id": "equip-ember-persisted",
+  "ok": true
+ },
+ {
+  "id": "prep-shows-ember-skill-cost-cd",
+  "ok": true,
+  "note": "อาวุธ: ดาบเขี้ยวโมดูลหลัก: โมดูลถุงไฟ ระดับ 1สกิล: ถุงไฟ — ใช้แรง 30, คูลดาวน์ 10.0 วินาทีโมดูลเสริม: ไม่มี"
+ },
+ {
+  "id": "Q11-ember-skill-places-zone-cost30-cd10",
+  "ok": true,
+  "note": "{\"zone\":{\"r\":85},\"cd\":9.699999999999985,\"stam\":70,\"hud\":\"9.7s\",\"btn\":\"9.7\"}"
+ },
+ {
+  "id": "Q11-HUD-cooldown-matches-state",
+  "ok": true,
+  "note": "hud=9.7s btn=9.7 state=9.70"
+ },
+ {
+  "id": "skill-blocked-during-cooldown",
+  "ok": true,
+  "note": "stamina 70→71"
+ },
+ {
+  "id": "abandon-from-pause-pays-nothing-and-clears-pending",
+  "ok": true,
+  "note": "{\"fang\":0,\"heat_bladder\":2,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0}"
+ },
+ {
+  "id": "fang-material-from-target-and-jaw-bonus",
+  "ok": true,
+  "note": "fang=4"
+ },
+ {
+  "id": "swap-modules-fang-primary-ember-secondary",
+  "ok": true
+ },
+ {
+  "id": "duplicate-module-two-slots-rejected",
+  "ok": true,
+  "note": "ติดโมดูลเดียวกันสองช่องไม่ได้"
+ },
+ {
+  "id": "Q11-fang-skill-bleeds-and-passive-cooldown-0.94",
+  "ok": true,
+  "note": "{\"bleed\":true,\"cd\":5.373333333333334,\"hp\":1385,\"hud\":\"[L] ตัดเลือด\"}"
+ },
+ {
+  "id": "defeat-pays-nothing-keeps-observations",
+  "ok": true,
+  "note": "{\"ember_gecko\":{\"hunts\":1,\"clears\":0,\"bestTimeHunt\":null,\"movesSeen\":[\"fire_breath\"],\"partsBroken\":[]}}"
+ },
+ {
+  "id": "Q12-save-failure-shows-error-not-success",
+  "ok": true,
+  "note": "⚠ บันทึกไม่สำเร็จ (พื้นที่เก็บข้อมูลใช้ไม่ได้หรือเต็ม) — รางวัลยังไม่เข้าคลัง กด \"ลองบันทึกใหม่\" (จะไม่ได้รางวัลซ้ำ)"
+ },
+ {
+  "id": "save-failure-rewards-not-in-inventory",
+  "ok": true,
+  "note": "{\"fang\":0,\"heat_bladder\":0,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0}"
+ },
+ {
+  "id": "retry-while-still-failing-no-double",
+  "ok": true
+ },
+ {
+  "id": "retry-after-recovery-pays-exactly-once",
+  "ok": true,
+  "note": "{\"fang\":0,\"heat_bladder\":3,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0}"
+ },
+ {
+  "id": "retry-then-replay-still-once",
+  "ok": true
+ },
+ {
+  "id": "reload-after-retry-once",
+  "ok": true
+ },
+ {
+  "id": "pendingHunt-persisted-before-entering-hunt",
+  "ok": true
+ },
+ {
+  "id": "reopen-after-mid-hunt-close-abandoned-no-loss",
+  "ok": true,
+  "note": "ข้อความรอบล่าที่แล้วถูกปิดกลางคัน — ไม่ได้รางวัล แต่วัสดุและ"
+ },
+ {
+  "id": "Q12-corrupt-primary-offers-backup-recovery",
+  "ok": true
+ },
+ {
+  "id": "recovery-does-not-overwrite-until-confirmed",
+  "ok": true
+ },
+ {
+  "id": "recovery-confirmed-restores-backup-data",
+  "ok": true
+ },
+ {
+  "id": "Q12-both-corrupt-no-silent-reset",
+  "ok": true
+ },
+ {
+  "id": "corrupt-raw-export-contains-original-bytes",
+  "ok": true
+ },
+ {
+  "id": "import-invalid-json-rejected-with-reason",
+  "ok": true
+ },
+ {
+  "id": "import-unknown-id-rejected",
+  "ok": true,
+  "note": "⚠ นำเข้าไม่ได้: วัสดุที่ไม่รู้จัก: gold"
+ },
+ {
+  "id": "import-future-schema-rejected",
+  "ok": true
+ },
+ {
+  "id": "import-checksum-mismatch-rejected",
+  "ok": true
+ },
+ {
+  "id": "rejected-imports-wrote-nothing",
+  "ok": true
+ },
+ {
+  "id": "import-valid-shows-preview-before-commit",
+  "ok": true,
+  "note": "ตัวอย่างข้อมูลที่จะนำเข้า (ของเดิมจะถูกแทนที่และเก็บเป็น backup):วัสดุ: fang×3โมดูล: ไม่มี"
+ },
+ {
+  "id": "import-replaces-save",
+  "ok": true
+ },
+ {
+  "id": "export-is-versioned-envelope-with-checksum",
+  "ok": true
+ },
+ {
+  "id": "Q12-storage-unavailable-banner-shown",
+  "ok": true,
+  "note": "พื้นที่เก็บข้อมูลใช้ไม่ได้ — ความคืบหน้ายังไม่บันทึกถาวร (ส่งออกเซฟได้ที่ฐาน)"
+ },
+ {
+  "id": "storage-unavailable-still-playable-no-fake-saved",
+  "ok": true,
+  "note": "รอบนี้ยังไม่ได้บันทึกถาวร — ไปที่ฐานแล้วส่งออกเซฟได้"
+ },
+ {
+  "id": "storage-unavailable-export-works",
+  "ok": true
+ },
+ {
+  "id": "Q13-other-tab-notified-and-locked",
+  "ok": true
+ },
+ {
+  "id": "Q13-stale-tab-write-refused-nothing-overwritten",
+  "ok": true,
+  "note": "{\"ok\":false,\"error\":\"พบการใช้งานจากอีกแท็บ — โหลดใหม่หรือส่งออกเซฟก่อน\",\"conflict\":true}"
+ },
+ {
+  "id": "Q13-reload-shows-latest",
+  "ok": true
+ },
+ {
+  "id": "Q14-10-hunts-scene-children-stable",
+  "ok": true,
+  "note": "children per hunt: 3,3,3,3,3,3,3,3,3,3"
+ },
+ {
+  "id": "Q14-10-hunts-heap-no-clear-growth",
+  "ok": true,
+  "note": "heap MB: 14.5, 14.6, 14.8, 14.8, 14.9, 14.3, 14.3, 14.4, 14.4, 14.4 | ~-60 KB/hunt after hunt 3"
+ },
+ {
+  "id": "layout-844x390-screens-usable",
+  "ok": true,
+  "note": "{\"base\":{\"sc\":false,\"mb\":48},\"prep\":{\"sc\":false,\"mb\":48},\"craft\":{\"sc\":false,\"mb\":48}}"
+ },
+ {
+  "id": "layout-740x360-screens-usable",
+  "ok": true,
+  "note": "{\"base\":{\"sc\":false,\"mb\":48},\"prep\":{\"sc\":false,\"mb\":48},\"craft\":{\"sc\":false,\"mb\":48}}"
+ },
+ {
+  "id": "layout-667x375-screens-usable",
+  "ok": true,
+  "note": "{\"base\":{\"sc\":false,\"mb\":48},\"prep\":{\"sc\":false,\"mb\":48},\"craft\":{\"sc\":false,\"mb\":48}}"
+ },
+ {
+  "id": "layout-568x320-screens-usable",
+  "ok": true,
+  "note": "{\"base\":{\"sc\":false,\"mb\":48},\"prep\":{\"sc\":false,\"mb\":48},\"craft\":{\"sc\":false,\"mb\":48}}"
+ },
+ {
+  "id": "Q15-844x390-5-buttons-ok",
+  "ok": true
+ },
+ {
+  "id": "Q15-740x360-5-buttons-ok",
+  "ok": true
+ },
+ {
+  "id": "Q15-667x375-5-buttons-ok",
+  "ok": true
+ },
+ {
+  "id": "Q15-568x320-5-buttons-ok",
+  "ok": true
+ },
+ {
+  "id": "no-console-errors",
+  "ok": true,
+  "note": ""
+ }
+]

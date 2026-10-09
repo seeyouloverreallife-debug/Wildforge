@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
-import { EMBER_GECKO, type MoveId } from './data/monsters';
+import { EMBER_GECKO } from './data/monsters';
 import { PLAYER } from './data/tuning';
-import type { HuntEvent, HuntResult } from './domain/hunt';
-import { monsterShapeHits } from './domain/monster';
-import { partWorldPos } from './domain/monster';
 import { DebugOverlay } from './diagnostics/debugOverlay';
+import type { HuntEvent } from './domain/hunt';
+import { monsterShapeHits, partWorldPos } from './domain/monster';
 import { InputController } from './engine/input/InputController';
 import { PauseController } from './engine/PauseController';
 import { ArenaScene, type FrameInfo } from './engine/scenes/ArenaScene';
 import { loadSettings, saveSettings, type Settings } from './persistence/settings';
+import { localStorageKV, SaveManager } from './persistence/saveManager';
+import { App } from './ui/app';
 import { TouchControls } from './ui/touchControls';
 
 const debugOn = new URLSearchParams(location.search).get('debug') === '1';
@@ -22,6 +23,9 @@ const touchRoot = $('touch');
 const touch = new TouchControls(touchRoot, input);
 const debug = new DebugOverlay($('debug'), input);
 const scene = new ArenaScene();
+const saveMgr = new SaveManager(localStorageKV());
+saveMgr.load();
+let app: App;
 
 // --- Touch visibility: coarse pointer, touch-capable device, ?touch=1, or first touch seen ---
 const forceTouch = new URLSearchParams(location.search).get('touch') === '1';
@@ -29,20 +33,18 @@ const showTouch = () => { touchRoot.hidden = false; };
 if (forceTouch || matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window) showTouch();
 window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') showTouch(); }, { capture: true, passive: true });
 
-// --- Pause wiring ---
-const overlays = { pause: $('overlay-pause'), settings: $('overlay-settings'), rotate: $('overlay-rotate'), start: $('overlay-start'), results: $('overlay-results') };
-let startOpen = true, resultsOpen = false;
+// --- Pause / settings / rotate overlays (screens are owned by App) ---
+const overlays = { pause: $('overlay-pause'), settings: $('overlay-settings'), rotate: $('overlay-rotate') };
 const render = () => {
   const manual = pause.cause !== null;
+  const inHunt = app ? app.screen === 'hunt' : false;
   overlays.settings.hidden = !pause.settingsOpen;
   overlays.rotate.hidden = !(pause.portrait && !pause.settingsOpen);
-  overlays.pause.hidden = !(manual && !pause.settingsOpen && !pause.portrait);
-  overlays.start.hidden = !(startOpen && !manual);
-  overlays.results.hidden = !(resultsOpen && !manual);
+  overlays.pause.hidden = !(manual && inHunt && !pause.settingsOpen && !pause.portrait);
   $('pause-reason').textContent = pause.cause === 'focus' ? 'เกมหยุดเพราะหน้าต่างเสียโฟกัส' : '';
   if (pause.paused) { input.reset(); touch.reset(); }
-  const focusTarget = !overlays.pause.hidden ? 'btn-resume' : !overlays.settings.hidden ? 'btn-close-settings' : !overlays.start.hidden ? 'btn-start' : !overlays.results.hidden ? 'btn-retry' : null;
-  if (focusTarget) $(focusTarget).focus();
+  if (!overlays.pause.hidden) $('btn-resume').focus();
+  else if (!overlays.settings.hidden) $('btn-close-settings').focus();
 };
 pause.onChange(render);
 
@@ -51,21 +53,17 @@ window.addEventListener('resize', checkOrientation);
 window.addEventListener('orientationchange', checkOrientation);
 checkOrientation();
 
-window.addEventListener('blur', () => pause.pause('focus'));
-document.addEventListener('visibilitychange', () => { if (document.hidden) pause.pause('focus'); });
+window.addEventListener('blur', () => { if (app?.screen === 'hunt') pause.pause('focus'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && app?.screen === 'hunt') pause.pause('focus'); });
 window.addEventListener('keydown', (e) => {
-  if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) {
-    if (pause.settingsOpen) pause.setSettingsOpen(false);
-    else if (pause.cause === null) pause.pause('user');
-    else pause.resume();
-  }
+  if (e.code !== 'Escape' && e.code !== 'KeyP') return;
+  if (e.repeat) return;
+  if (pause.settingsOpen) { pause.setSettingsOpen(false); return; }
+  if (app.screen !== 'hunt') return;
+  if (pause.cause === null) pause.pause('user'); else pause.resume();
 });
 $('btn-pause').addEventListener('click', () => pause.pause('user'));
 $('btn-resume').addEventListener('click', () => pause.resume());
-const newHunt = () => { scene.restart(); resultsOpen = false; startOpen = false; hintShown.clear(); pause.resume(); pause.setMenu(false); };
-$('btn-restart').addEventListener('click', newHunt);
-$('btn-retry').addEventListener('click', newHunt);
-$('btn-start').addEventListener('click', () => { startOpen = false; pause.setMenu(false); });
 $('btn-open-settings').addEventListener('click', () => pause.setSettingsOpen(true));
 $('btn-rotate-settings').addEventListener('click', () => pause.setSettingsOpen(true));
 $('btn-close-settings').addEventListener('click', () => pause.setSettingsOpen(false));
@@ -80,13 +78,15 @@ reduced.addEventListener('change', () => { settings.reducedEffects = reduced.che
 // --- HUD ---
 const hpFill = $('hp-fill'), hpText = $('hp-text'), stFill = $('st-fill'), stText = $('st-text'), timer = $('timer');
 const bossFill = $('boss-fill'), hintEl = $('hint');
+const skillHud = $('skill-hud'), skillName = $('skill-name'), skillCost = $('skill-cost'), skillCd = $('skill-cd');
+const btnSkill = $('btn-skill'), btnSkillLabel = $('btn-skill-label');
 const chips = new Map<string, HTMLElement>();
 document.querySelectorAll<HTMLElement>('#chips .chip').forEach((c) => chips.set(c.dataset.part!, c));
-const hintShown = new Set<MoveId>();
+const hintShown = new Set<string>();
 let hintTimer: number | undefined;
 let lastSecond = -1;
 const onFrame = (f: FrameInfo) => {
-  const { player, monster, elapsed, selected } = f.hunt;
+  const { player, monster, elapsed, selected, build } = f.hunt;
   hpFill.style.width = `${(player.hp / PLAYER.maxHp) * 100}%`;
   hpText.textContent = String(Math.ceil(player.hp));
   stFill.style.width = `${(player.stamina / PLAYER.maxStamina) * 100}%`;
@@ -98,6 +98,13 @@ const onFrame = (f: FrameInfo) => {
     el.classList.toggle('sel', selected === id);
     el.classList.toggle('broken', monster.broken.includes(id as never));
   });
+  const sk = build.skill, cost = Math.max(1, Math.round(sk.cost));
+  const cd = player.skillCooldown;
+  skillName.textContent = `[L] ${sk.nameTh}`; skillCost.textContent = `แรง ${cost}`;
+  skillCd.textContent = cd > 0 ? `${cd.toFixed(1)}s` : 'ใช้ได้';
+  skillHud.classList.toggle('cooling', cd > 0); skillHud.classList.toggle('ready', cd <= 0);
+  btnSkillLabel.textContent = cd > 0 ? cd.toFixed(1) : sk.nameTh;
+  btnSkill.classList.toggle('cooling', cd > 0 || player.stamina < cost);
   debug.update(f);
 };
 
@@ -119,25 +126,6 @@ const onEvent = (e: HuntEvent) => {
   }
 };
 
-const onResult = (r: HuntResult) => {
-  const win = r.outcome === 'success';
-  $('results-title').textContent = win ? 'ล่าสำเร็จ!' : 'ล้มเหลว';
-  $('results-reason').textContent = win ? '' : r.failReason === 'timeout' ? 'หมดเวลา 10 นาที' : 'ผู้เล่นล้ม';
-  const parts = r.brokenPartIds.map((id) => EMBER_GECKO.parts.find((p) => p.id === id)!.nameTh);
-  const moves = r.movesSeen.map((id) => EMBER_GECKO.moves.find((m) => m.id === id)!.nameTh);
-  const mm = Math.floor(r.elapsed / 60), ss = Math.floor(r.elapsed % 60);
-  const list = $('results-list');
-  list.replaceChildren();
-  const row = (t: string) => { const li = document.createElement('li'); li.textContent = t; list.append(li); };
-  row(`ผล: ${win ? 'เสร็จแล้ว — ล่ากิ้งก่าถุงไฟ' : 'ยังไม่ผ่าน — ล่ากิ้งก่าถุงไฟ'}`);
-  row(`เวลา: ${mm}:${String(ss).padStart(2, '0')}`);
-  row(`ส่วนที่ทำลาย: ${parts.length ? parts.join(', ') : 'ไม่มี'}`);
-  row(`ท่าที่เห็น: ${moves.length ? moves.join(', ') : 'ยังไม่เห็น'}`);
-  $('btn-retry').textContent = win ? 'ล่าอีกครั้ง' : 'ลองใหม่';
-  resultsOpen = true;
-  pause.setMenu(true);
-};
-
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: gameEl,
@@ -148,12 +136,15 @@ const game = new Phaser.Game({
   render: { antialias: true, roundPixels: false },
   scene: [],
 });
-game.scene.add('Arena', scene, true, { input, pause, getSettings: () => settings, onFrame, onEvent, onResult });
+app = new App(saveMgr, scene, pause);
+game.scene.add('Arena', scene, true, { input, pause, getSettings: () => settings, onFrame, onEvent, onResult: (r: Parameters<App['onResult']>[0]) => app.onResult(r) });
 
 if (debugOn) {
   (window as unknown as Record<string, unknown>).__wildforge = {
-    scene, pause, input, log: debugLog, api: { monsterShapeHits, partWorldPos }, get state() { return scene.debugState; }, get hunt() { return scene.hunt; },
+    scene, pause, input, app, save: saveMgr, log: debugLog, api: { monsterShapeHits, partWorldPos },
+    get state() { return scene.debugState; }, get hunt() { return scene.hunt; },
   };
 }
-pause.setMenu(true); // start screen until 'เริ่มล่า'
+pause.setMenu(true);
+app.boot();
 render();

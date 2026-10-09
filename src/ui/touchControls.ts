@@ -51,6 +51,7 @@ export class TouchControls {
 
     this.bindButton(atk, () => { input.touch.attackHeld = true; input.pressAttack(); }, () => { input.touch.attackHeld = false; });
     this.bindButton(dodge, () => input.pressDodge(), () => {});
+    this.bindButton(root.querySelector<HTMLElement>('#btn-skill')!, () => input.pressSkill(), () => {});
     this.bindButton(root.querySelector<HTMLElement>('#btn-part')!, () => input.pressPart(), () => {});
 
     // Geometry changed under a held finger (rotate / resize / browser chrome): drop the touch rather than leave a stale origin.

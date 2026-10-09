@@ -1,6 +1,6 @@
 {
   "name": "wildforge",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "qa:browser": "vite build && node scripts/qa-browser.mjs",
-    "qa:m1": "vite build && node scripts/qa-m1.mjs"
+    "qa:m1": "vite build && node scripts/qa-m1.mjs",
+    "qa:m2": "vite build && node scripts/qa-m2.mjs"
   },
   "dependencies": {
     "phaser": "^4.2.1"

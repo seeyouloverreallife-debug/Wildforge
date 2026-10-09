@@ -16,6 +16,7 @@
       <div class="bars">
         <div class="bar-row"><span class="bar-label">HP</span><div class="bar"><div id="hp-fill" class="fill hp"></div></div><span id="hp-text" class="bar-num">100</span></div>
         <div class="bar-row"><span class="bar-label">แรง</span><div class="bar"><div id="st-fill" class="fill st"></div></div><span id="st-text" class="bar-num">100</span></div>
+        <div id="skill-hud" class="skill-hud"><span id="skill-name"></span> <span id="skill-cost"></span> <span id="skill-cd" class="skill-cd"></span></div>
       </div>
       <div id="boss" aria-label="มอนสเตอร์">
         <div class="boss-top"><span id="boss-name">กิ้งก่าถุงไฟ</span><span id="timer" class="timer" aria-label="เวลาล่า">0:00</span></div>
@@ -27,34 +28,83 @@
       <button id="btn-pause" class="hud-btn" type="button" aria-label="หยุดชั่วคราว">&#10074;&#10074;</button>
     </div>
 
+    <div id="save-banner" role="status" hidden></div>
     <div id="hint" role="status" aria-live="polite" hidden></div>
     <pre id="debug" hidden></pre>
 
     <div id="touch" hidden>
       <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
+      <button id="btn-skill" class="act-btn small" type="button" aria-label="สกิล"><span id="btn-skill-label">สกิล</span></button>
       <button id="btn-part" class="act-btn small" type="button" aria-label="เปลี่ยนส่วนเป้าหมาย">เป้า</button>
       <button id="btn-dodge" class="act-btn" type="button">หลบ</button>
       <button id="btn-attack" class="act-btn big" type="button">โจมตี</button>
     </div>
 
-    <div id="overlay-start" class="overlay" role="dialog" aria-modal="true" aria-labelledby="start-title" hidden>
-      <div class="panel">
-        <h1 id="start-title">กิ้งก่าถุงไฟ</h1>
-        <p class="muted">ล่าให้ HP หมด สังเกตสัญญาณก่อนโจมตี หลบข้างแล้วตีถุงไฟให้แตก — จะเลิกพ่นไฟ</p>
-        <p class="muted kbd">เดิน WASD • โจมตี คลิก/J • หลบ Space/K • เปลี่ยนเป้า Tab/R • พัก Esc</p>
-        <div class="stack"><button id="btn-start" class="primary" type="button">เริ่มล่า</button></div>
+    <!-- Out-of-hunt screens -->
+    <section id="screen-base" class="overlay screen" aria-labelledby="base-title" hidden>
+      <div class="panel wide">
+        <h1 id="base-title">Wildforge — เกาะหลอมเขี้ยว</h1>
+        <div id="base-status" class="status-line"></div>
+        <div id="base-inv" class="inv"></div>
+        <div id="base-pin" class="pin"></div>
+        <div id="base-bestiary" class="muted"></div>
+        <div class="row">
+          <button id="btn-hunt" class="primary" type="button">ออกล่า</button>
+          <button id="btn-craft" type="button">ประกอบอาวุธ</button>
+        </div>
+        <div class="row small-row">
+          <button id="btn-base-settings" type="button">ตั้งค่า</button>
+          <button id="btn-save-tools" type="button">ส่งออก / นำเข้าเซฟ</button>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div id="overlay-results" class="overlay" role="dialog" aria-modal="true" aria-labelledby="results-title" hidden>
-      <div class="panel">
+    <section id="screen-prep" class="overlay screen" aria-labelledby="prep-title" hidden>
+      <div class="panel wide">
+        <h1 id="prep-title">กิ้งก่าถุงไฟ</h1>
+        <p class="muted">สัตว์สี่ขาหัวกว้าง ถุงใต้คอเรืองแสงส้ม — สังเกตท่าก่อนโจมตี หลบข้างแล้วตีถุงไฟให้แตกจะเลิกพ่นไฟ</p>
+        <fieldset class="target"><legend>วัสดุเป้าหมาย (เลือกก่อนล่า เปลี่ยนกลางรอบไม่ได้)</legend><div id="prep-targets"></div></fieldset>
+        <div id="prep-loadout" class="loadout"></div>
+        <p id="prep-reward" class="muted"></p>
+        <p id="prep-error" class="err" role="alert" hidden></p>
+        <div class="row">
+          <button id="btn-start" class="primary" type="button">เริ่มล่า</button>
+          <button id="btn-prep-craft" type="button">แก้ชุดอุปกรณ์</button>
+          <button id="btn-prep-back" type="button">กลับฐาน</button>
+        </div>
+        <p class="muted kbd">เดิน WASD • โจมตี คลิก/J • สกิล คลิกขวา/L • หลบ Space/K • เปลี่ยนเป้า Tab/R • พัก Esc</p>
+      </div>
+    </section>
+
+    <section id="screen-craft" class="overlay screen" aria-labelledby="craft-title" hidden>
+      <div class="panel wide">
+        <h1 id="craft-title">ประกอบอาวุธ</h1>
+        <div id="craft-inv" class="inv"></div>
+        <div id="craft-list" class="cards"></div>
+        <div class="slots">
+          <label>โมดูลหลัก (เปลี่ยนสกิล)
+            <select id="slot-primary"></select></label>
+          <label>โมดูลเสริม (ความสามารถติดตัว)
+            <select id="slot-secondary"></select></label>
+        </div>
+        <p id="craft-msg" class="msg" role="status" aria-live="polite"></p>
+        <div class="row"><button id="btn-craft-back" class="primary" type="button">กลับ</button></div>
+      </div>
+    </section>
+
+    <section id="screen-results" class="overlay screen" role="dialog" aria-modal="true" aria-labelledby="results-title" hidden>
+      <div class="panel wide">
         <h1 id="results-title"></h1>
         <p id="results-reason" class="muted"></p>
         <ul id="results-list" class="results"></ul>
-        <p class="muted">วัสดุและการสร้างโมดูลเปิดใน M2 — รอบนี้ยังไม่มีรางวัลเก็บ</p>
-        <div class="stack"><button id="btn-retry" class="primary" type="button"></button></div>
+        <p id="results-save" class="msg" role="status"></p>
+        <div class="row">
+          <button id="btn-retry" class="primary" type="button"></button>
+          <button id="btn-save-retry" type="button" hidden>ลองบันทึกใหม่</button>
+          <button id="btn-results-home" type="button">กลับฐาน</button>
+        </div>
       </div>
-    </div>
+    </section>
 
     <div id="overlay-pause" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden>
       <div class="panel">
@@ -62,7 +112,8 @@
         <p id="pause-reason" class="muted"></p>
         <div class="stack">
           <button id="btn-resume" class="primary" type="button">เล่นต่อ</button>
-          <button id="btn-restart" type="button">เริ่มสนามใหม่</button>
+          <button id="btn-restart" type="button">เริ่มรอบใหม่ (ทิ้งรอบนี้)</button>
+          <button id="btn-home" type="button">กลับฐาน (ทิ้งรอบนี้)</button>
           <button id="btn-open-settings" type="button">ตั้งค่า</button>
         </div>
       </div>
@@ -75,9 +126,13 @@
           <input id="set-shake" type="range" min="0" max="1" step="0.05" />
         </label>
         <label class="field check"><input id="set-reduced" type="checkbox" /> ลดเอฟเฟกต์</label>
-        <p class="muted">เสียงยังไม่มีในรุ่น M0</p>
+        <p class="muted">เสียงยังไม่มีในรุ่นนี้</p>
         <div class="stack"><button id="btn-close-settings" class="primary" type="button">ปิด</button></div>
       </div>
+    </div>
+
+    <div id="overlay-dialog" class="overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-title" hidden>
+      <div class="panel wide" id="dialog-panel"></div>
     </div>
 
     <div id="overlay-rotate" class="overlay" role="alert" hidden>

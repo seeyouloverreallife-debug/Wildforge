@@ -1,31 +1,43 @@
-# QA report — M1 / 0.0.2
+# QA report — M2 / 0.0.3
 
-Environment: Linux container, Node v22.22.0, npm 10.9.4, headless Chromium (Playwright 1.56.1). Clean-room `npm ci` → build → test → audit re-run on the committed tree: all OK (`docs/DEPENDENCY_CHECK.md`).
-**ไม่มีมือถือจริง** — touch ทั้งหมดเป็น CDP touch emulation ("simulated") และ**ผู้เล่นในคลิปเป็นบอท** ไม่ใช่มนุษย์ → ไม่มีข้อมูลความสนุก/ความยาก/touch feel
+Environment: Linux container, Node v22.22.0, npm 10.9.4, headless Chromium (Playwright 1.56.1). **ไม่มีมือถือจริง** — touch เป็น CDP emulation; **ผู้เล่นในชุดทดสอบและคลิปเป็นบอท** → ไม่มีข้อมูลความสนุก/สมดุล/touch feel
 
-## Automated domain tests (`npm test`): 42/42 PASS
-M0 player/fixedStep/settings (17) + M1 hunt (25): ฟันหลายเฟรมทับกัน = damage ครั้งเดียวต่อ attackId • ถือปุ่มโจมตี = 1 hit/attackId • ×1.15 ช่วง recovery • เลือกส่วนใกล้ปลายอาวุธ/ด้านข้างโดนถุงไฟ • cycleTarget ข้ามส่วนที่แตก • แตกซ้ำไม่จ่ายซ้ำ • **อวัยวะแตกพร้อมตาย → break มาก่อน death, brokenPartIds ครบ, SUCCESS ครั้งเดียว** • แตกไม่ต่อเวลา stagger • stagger meter 100 → 1.2s • ถุงไฟแตก → พ่นไฟไม่ eligible/ไม่ถูกเลือก (50 seeds × 40 ครั้ง) • ไม่ซ้ำท่าเกิน 2 ติด • seed เดิม = ลำดับท่าเดิม • ถุงไฟแตก bite recovery +0.2, ขากรรไกรแตก bite 12 • พ่นไฟ 22 ครั้งเดียวทั้งที่ cone อยู่ 0.7s • invulnerable 0.6s หลังโดน • i-frame หลบกันดาเมจ / สัมผัสตอน i-frame ไม่ใช้ attack • กัด 16 / กวาด 18 • ชนหินหยุดพุ่ง recovery +0.5 • หางหันเข้าหาผู้เล่น • FAILED/timeout/ABANDONED จบครั้งเดียว ไม่ step ต่อ • ฆ่ากับถูกตี tick เดียวกัน = terminal เดียว
-
-## Browser M1 (`npm run qa:m1`, scripts/qa-m1.mjs): 52/52 PASS (simulated touch, 844×390)
-| ID | ผล | หลักฐาน |
+## ผลรวม (รอบสุดท้ายบนโค้ดที่ส่ง)
+| ชุด | คำสั่ง | ผล |
 |---|---|---|
-| ล่าจบ 1 รอบ (ชนะ) | PASS | บอทเล่นผ่านจอย/ปุ่ม touch emulation ชนะใน sim 141 วินาที, ใช้ 1 attempt, แตกทั้งถุงไฟ+ขากรรไกร — `qa-artifacts/m1-hunt-win.mp4`, `m1-results-success.png` |
-| **Q02 ถุงไฟแตกแล้วหยุดพ่นไฟ** | PASS | log จริงในรอบชนะ: telegraph พ่นไฟก่อนแตก 4 ครั้ง, **หลังแตก 0 ครั้ง** ขณะที่ท่าอื่นถูกใช้อีก 45 ครั้ง |
-| ทุกครั้งที่ผู้เล่นโดนมี telegraph ของท่านั้นนำก่อน | PASS | 3 hurt events ในรอบ (บอทเลี่ยงได้ส่วนใหญ่) |
-| เห็นครบ 3 ท่า, terminal event เดียว, แตกก่อนตาย | PASS | event log |
-| **Pause ระหว่าง telegraph / attack** | PASS | หยุดที่ monster t=0.317 (telegraph) และ 0.117 (attack): mon t, elapsed, phase, HP ไม่เปลี่ยนหลังรอ 1.5 วินาทีจริง; กด resume 0.25s จริง → elapsed เพิ่ม 0.267/0.250 (ไม่กระโดด) |
-| พ่ายแพ้ | PASS | HP=1 → FAILED, หน้า "ล้มเหลว / ผู้เล่นล้ม / ลองใหม่", terminal เดียว, กด "ลองใหม่" ปุ่มเดียว → huntId ใหม่ ACTIVE HP 100 (`m1-results-failed.png`) |
-| **Resize/หมุนจอ vs จอย/ปุ่ม** | PASS | 5 ขนาดแนวนอน (844×390, 740×360, 667×375, 932×430, 568×320): ปุ่มทั้ง 4 ≥48px ไม่ซ้อน อยู่ในจอ; canvas เท่า viewport; ฐานจอยโผล่ใต้นิ้ว (คลาด ≤1px) และเดินได้; **resize ระหว่างจอยค้าง → input ถูก drop ผู้เล่นหยุดนิ่ง (0.00)**; หมุนเป็นแนวตั้งขณะจับ → pause+คำแนะนำ, หมุนกลับ → เกมเดินต่อไม่มี input ค้าง |
-| ไม่มี console error | PASS | ตลอดชุดทดสอบ |
+| Domain unit | `npm test` | **90/90 PASS** (7 ไฟล์) |
+| M0 regression | `npm run qa:browser` | 26/26 PASS |
+| M1 regression (ล่า HP เต็ม 1 รอบ + pause/defeat/resize) | `npm run qa:m1` | 52/52 PASS |
+| **M2** | `npm run qa:m2` | **61/61 PASS** |
+Clean-room: `npm ci` → build → test บน tree ที่ commit (ดู CHECKPOINT) — 0 vulnerabilities
 
-## Browser M0 regression (`npm run qa:browser`): 26/26 PASS
-(ปรับ script ให้กด "เริ่มล่า" และจอดสัตว์ไว้ เพื่อทดสอบการเดิน/หลบอย่างเดียว)
+## M2 gate: ล่า → ได้วัสดุ → craft → ติดตั้ง → ล่าใหม่ → reload ของยังอยู่ — PASS (บอท, ล่า HP ย่อ)
+ลำดับจริงใน `qa-m2.mjs` section 1 และคลิป `qa-artifacts/m2-loop.mp4` (45 วินาที, HP สัตว์ถูกย่อ):
+ล่าชนะ (วัสดุเข้า + บันทึก) → reload (ไม่จ่ายซ้ำ) → ล่าอีก → ปักหมุด+คราฟต์ถุงไฟ → ติดตั้งเป็นโมดูลหลัก → reload (ยังอยู่) → ล่าใหม่ใช้สกิลถุงไฟ → โซนไฟ r85 แรง 30 คูลดาวน์ ~10 ตรงกับ HUD
 
-## การเปลี่ยนที่ผู้ใช้ขอ
-* เดินระหว่างฟัน/แรงสั่น: ทำตามตารางใน `tuning.ts` แต่ **ไม่มีตารางต้นฉบับแนบมา** — ค่าเป็นข้อเสนอ ดู DESIGN_DEVIATIONS #1 (ทดสอบแล้ว: unit ฟัน/เดิน ผ่าน; ความรู้สึกยัง NOT TESTED)
+## Manual-integration IDs ที่เกี่ยวข้อง
+| ID | ผล | วิธี/หลักฐาน |
+|---|---|---|
+| Q06 ชนะแล้วกดผลซ้ำ/reload | PASS | replay `onResult` 2 ครั้ง + reload → วัสดุเท่าเดิม |
+| Q07 craft double tap + reload | PASS | dblclick ปุ่มสร้าง: หักครั้งเดียว, โมดูลอยู่ครบหลัง reload |
+| Q11 สลับโมดูลหลักกับอาวุธ | PASS บางส่วน | มีอาวุธเดียว (หอกยังไม่เปิด): ทดสอบ ถุงไฟ/เขี้ยว เป็นหลัก+เสริม, สกิลมีผลจริง (โซนไฟ / เลือดไหล), cost/cooldown ใน HUD ตรง state (±0.4s ข้อมูลอ่านทันที); passive คูลดาวน์ 5.64 ตรง |
+| Q12 JSON ผิด / storage ใช้ไม่ได้ | PASS | primary เสีย→เสนอกู้ backup (ไม่เขียนทับก่อนยืนยัน), ทั้งสองเสีย→ไม่รีเซ็ต + ส่งออกดิบ (ได้ byte เดิม), นำเข้า: JSON เสีย/ID แปลก/schema อนาคต/checksum ไม่ตรง ถูกปฏิเสธโดยไม่เขียน, นำเข้าถูก→พรีวิว→แทนที่; storage ใช้ไม่ได้→แบนเนอร์ + เล่นได้ + ไม่ขึ้น "บันทึกแล้ว" + ส่งออกได้; เขียนล้มเหลวตอน settlement → แจ้ง error, รางวัลไม่เข้าคลัง, retry จ่ายครั้งเดียว |
+| Q13 สองแท็บ | PASS | แท็บที่ตามหลังถูกล็อก+ขึ้น dialog, เขียนถูกปฏิเสธ (revision), เซฟของแท็บแรกไม่ถูกทับ, reload ได้ข้อมูลล่าสุด |
+| Q14 10 รอบไม่มี growth | PASS (วัดแบบหยาบ) | `scene.children` = 3 ตลอด 10 รอบ; heap หลัง GC 14.3–14.9 MB (ไม่โตต่อรอบ ≈ −60 KB/รอบ) ใน Chromium headless — ไม่ใช่การวัดบนมือถือ |
+| Q15 viewport | PASS | 5 ปุ่ม HUD (รวมสกิล) ที่ 844×390, 740×360, 667×375, 568×320: ≥48px ไม่ซ้อน อยู่ในจอ; หน้า ฐาน/เตรียมล่า/คราฟต์ ปุ่ม ≥48px (หน้าคราฟต์ต้องเลื่อน — DESIGN_DEVIATIONS #23) |
+| ใหม่: ปิดหน้ากลางล่า | PASS | pendingHunt ถูกเขียนก่อนเข้าล่า; reload → abandoned, ไม่ได้รางวัล, วัสดุเดิมครบ, แจ้งข้อความสั้น |
+| ใหม่: แพ้ไม่ได้อะไร | PASS | วัสดุ/Research = 0 แต่ท่าที่เห็นถูกบันทึกในสมุด |
+
+## Domain tests ใหม่ใน M2 (63 จาก 90)
+คราฟต์ 4/6, ไม่ติดลบ, ห้ามซ้ำ/upgrade ซ้ำ/โมดูลที่ยังไม่เปิด • settlement: ชนะ/แพ้/abandon, idempotent, pure • validateSave 11 กรณีปฏิเสธพร้อมเหตุผล • SaveManager: commit/อ่านกลับ/backup, write fail → ไม่ commit + retry, settlement fail→retry จ่ายครั้งเดียว, craft transaction, primary เสีย/ทั้งคู่เสีย, checksum, volatile, สองแท็บ, import/export • สกิล: Focus Strike (windup 0.35, 18 dmg, แรง 20, cd 6, stamina ไม่พอ=ไม่ติด cd), เขี้ยว (15/16, bleed 3/3.3 carry, refresh ไม่ stack, DOT ไม่ทำ part/stagger), ถุงไฟ (โซน, pulse 1/2/3 วินาที เฉพาะเมื่ออยู่ในโซน, 6/6.6), passive ทั้งสอง, DOT ฆ่า = SUCCESS ครั้งเดียว
 
 ## NOT TESTED / ข้อจำกัด
-มือถือจริง (touch feel, FPS, ความร้อน, safe-area จริง) • ความสนุก/ความยุติธรรมของท่าเมื่อมนุษย์เล่น (บอทเก่งเกินมนุษย์) • Q01, Q03–Q04 เฉพาะ shell/poison/wing/horn, Q06–Q14, Q16–Q18 (ยังไม่มี save/ปู/ปีก/เถาวัลย์/จับ) • หมดเวลา 10 นาทีใน browser (ทดสอบเฉพาะ unit) • stuck-handling สัตว์ (ยังไม่ทำ) • alt-tab จริง/visibilitychange จริง (จำลองด้วย event `blur`) • Firefox/Safari • memory growth 10 รอบ (ยังไม่ได้วัด) • ฟอนต์ไทยบนอุปกรณ์จริง
-FPS ~59–60 ในคลิปเป็นของ headless Chromium เท่านั้น • คลิปเปิด `?debug=1` จึงเห็น overlay
+- มือถือจริง (touch feel, FPS ≥30, ความร้อน, safe-area); ความสนุก/ความยาก/ความอ่านง่ายเมื่อมนุษย์เล่น — **ยังไม่มี owner playtest M2**
+- ล่า HP เต็มพร้อมโมดูล (ทดสอบ HP ย่อ; HP เต็มทดสอบเฉพาะ M1 regression ไม่มีโมดูล)
+- Balance ต้นทุน 4/6 เทียบรางวัล 2/รอบ ("โมดูลแรกใช้สูงสุด 2 รอบ") — ในเกมจริงต้อง playtest; ค่าอยู่ใน `CRAFT_COST`
+- การเขียนเซฟ crash กลางทาง (process kill ระหว่าง `setItem`) — ใช้ atomic per-key + backup แต่ไม่ได้จำลอง kill จริง
+- localStorage quota จริง/Safari private mode จริง (จำลองด้วย setItem ที่ throw), Firefox/Safari, หลาย origin
+- Q03 (shell/poison/wing/horn), Q08–Q10, Q16–Q18 (ยังไม่มีปู/ปีก/จับ/เถาวัลย์), ยาฟื้น, stuck-handling ของสัตว์
+- FPS ~60 มาจาก headless Chromium เท่านั้น • คลิปเปิด `?debug=1` เลยเห็น overlay
 
-หลักฐาน: `qa-artifacts/` (ภาพทั้งหมดและคลิปเป็น placeholder shapes), `qa-artifacts/qa-m1-run.log`
+หลักฐาน: `qa-artifacts/` (m2-*.png, m2-loop.mp4, m1-hunt-win.mp4, qa-m*-run.log, qa-m2-results.json) — ทั้งหมดเป็น placeholder shapes
