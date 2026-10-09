@@ -28,3 +28,21 @@ export const ARENA = {
     { id: 'rock_b', x: 1130, y: 560, r: 70 },
   ] as readonly CircleObstacle[],
 } as const;
+
+/** Player speed multiplier while swinging, by attack phase. PROPOSED values (no table was supplied) — tune in playtest. */
+export const ATTACK_WALK_MULT = { startup: 0.7, active: 0.4, recovery: 0.85 } as const;
+
+/** Camera shake table: duration ms, intensity at the default slider (0.3). Scaled by slider/0.3, capped. PROPOSED values. */
+export const SHAKE_TABLE = {
+  dodge: { ms: 80, intensity: 0.0015 },
+  hitLanded: { ms: 60, intensity: 0.0015 },
+  playerHurt: { ms: 150, intensity: 0.006 },
+  partBreak: { ms: 150, intensity: 0.005 },
+  monsterStagger: { ms: 100, intensity: 0.003 },
+  monsterDeath: { ms: 300, intensity: 0.008 },
+} as const;
+export type ShakeKind = keyof typeof SHAKE_TABLE;
+
+export const HURT_INVULN = 0.6; // §7.1 invulnerability after being hit
+export const HUNT_TIME_LIMIT = 600; // §7.1 10 minutes
+export const SOFT_LOCK_RANGE = 420; // §7.3

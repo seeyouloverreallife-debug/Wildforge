@@ -8,9 +8,11 @@ export class PauseController {
   private manualCause: PauseCause = null;
   settingsOpen = false;
   portrait = false;
+  /** start / results screens: simulation and combat input are off */
+  menu = false;
   private listeners: Array<() => void> = [];
 
-  get paused(): boolean { return this.manualCause !== null || this.settingsOpen || this.portrait; }
+  get paused(): boolean { return this.manualCause !== null || this.settingsOpen || this.portrait || this.menu; }
   get cause(): PauseCause { return this.manualCause; }
 
   pause(cause: Exclude<PauseCause, null>): void {
@@ -20,6 +22,7 @@ export class PauseController {
   }
   resume(): void { this.manualCause = null; this.emit(); }
   setSettingsOpen(v: boolean): void { this.settingsOpen = v; this.emit(); }
+  setMenu(v: boolean): void { this.menu = v; this.emit(); }
   setPortrait(v: boolean): void { if (this.portrait !== v) { this.portrait = v; this.emit(); } }
   onChange(f: () => void): void { this.listeners.push(f); }
   private emit(): void { this.listeners.forEach((f) => f()); }

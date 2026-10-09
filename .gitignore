@@ -4,3 +4,5 @@ dist/
 .DS_Store
 qa-artifacts/tmp/
 *.zip
+*.webm
+qa-artifacts/tmp/

@@ -51,6 +51,13 @@ export class TouchControls {
 
     this.bindButton(atk, () => { input.touch.attackHeld = true; input.pressAttack(); }, () => { input.touch.attackHeld = false; });
     this.bindButton(dodge, () => input.pressDodge(), () => {});
+    this.bindButton(root.querySelector<HTMLElement>('#btn-part')!, () => input.pressPart(), () => {});
+
+    // Geometry changed under a held finger (rotate / resize / browser chrome): drop the touch rather than leave a stale origin.
+    const onGeom = () => { if (this.joyId !== null || this.btnIds.size) { this.reset(); input.reset(); } };
+    window.addEventListener('resize', onGeom);
+    window.addEventListener('orientationchange', onGeom);
+    this.cleanup.push(() => { window.removeEventListener('resize', onGeom); window.removeEventListener('orientationchange', onGeom); });
   }
 
   private setStick(x: number, y: number): void { this.input.touch.moveX = x; this.input.touch.moveY = y; }

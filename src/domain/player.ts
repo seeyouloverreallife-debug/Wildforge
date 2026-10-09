@@ -1,4 +1,4 @@
-import { PLAYER } from '../data/tuning';
+import { ATTACK_WALK_MULT, HURT_INVULN, PLAYER } from '../data/tuning';
 import { WEAPONS, type WeaponDef } from '../data/weapons';
 import { fromAngle, len, norm, type Vec } from './vec';
 import { resolveCollisions, type World } from './world';
@@ -33,6 +33,8 @@ export interface PlayerState {
   attack: { t: number; facing: number; id: number } | null;
   attackCounter: number;
   buffer: { kind: BufferedKind; age: number } | null;
+  /** seconds of post-hit invulnerability remaining (§7.1) */
+  hurtInvuln: number;
   time: number;
 }
 
@@ -48,6 +50,7 @@ export function createPlayer(spawn: Vec): PlayerState {
     attack: null,
     attackCounter: 0,
     buffer: null,
+    hurtInvuln: 0,
     time: 0,
   };
 }
@@ -68,6 +71,7 @@ function canCancelAttackIntoDodge(p: PlayerState, w: WeaponDef): boolean {
 }
 
 export function isInvulnerable(p: PlayerState): boolean {
+  if (p.hurtInvuln > 0) return true;
   return !!p.dodge && p.dodge.t >= PLAYER.dodgeInvulnStart && p.dodge.t <= PLAYER.dodgeInvulnEnd;
 }
 
@@ -81,6 +85,7 @@ export function stepPlayer(
   p: PlayerState, intent: Intent, dt: number, world: World, weapon: WeaponDef = WEAPONS.fang_cleaver,
 ): void {
   p.time += dt;
+  p.hurtInvuln = Math.max(0, p.hurtInvuln - dt);
   p.dodgeCooldown = Math.max(0, p.dodgeCooldown - dt);
   p.staminaIdle += dt;
   if (p.staminaIdle >= PLAYER.staminaRegenDelay) {
@@ -132,8 +137,10 @@ export function stepPlayer(
     p.dodge.t += dt;
     if (p.dodge.t >= PLAYER.dodgeDuration - 1e-9) p.dodge = null;
   } else if (hasMove) {
-    p.pos.x += moveDir.x * PLAYER.walkSpeed * dt;
-    p.pos.y += moveDir.y * PLAYER.walkSpeed * dt;
+    const phase = attackPhase(p, weapon);
+    const mult = phase ? ATTACK_WALK_MULT[phase] : 1;
+    p.pos.x += moveDir.x * PLAYER.walkSpeed * mult * dt;
+    p.pos.y += moveDir.y * PLAYER.walkSpeed * mult * dt;
   }
   resolveCollisions(p.pos, PLAYER.radius, world);
 
@@ -149,4 +156,13 @@ function startAttack(p: PlayerState, intent: Intent): void {
   if (intent.aim) facing = Math.atan2(intent.aim.y - p.pos.y, intent.aim.x - p.pos.x);
   p.facing = facing;
   p.attack = { t: 0, facing, id: p.attackCounter };
+}
+
+/** Apply monster damage. Returns damage dealt (0 if invulnerable). Min 1 for a real hit (§9). */
+export function damagePlayer(p: PlayerState, amount: number): number {
+  if (isInvulnerable(p) || p.hp <= 0) return 0;
+  const d = Math.max(1, Math.round(amount));
+  p.hp = Math.max(0, p.hp - d);
+  p.hurtInvuln = HURT_INVULN;
+  return d;
 }

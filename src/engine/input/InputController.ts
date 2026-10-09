@@ -12,7 +12,7 @@ const GAME_KEYS = new Set([...Object.keys(KEY_MOVE), ...KEY_ATTACK, ...KEY_DODGE
 
 export interface RawInput {
   moveX: number; moveY: number;
-  attackHeld: boolean; attackPressed: boolean; dodgePressed: boolean;
+  attackHeld: boolean; attackPressed: boolean; dodgePressed: boolean; partPressed: boolean;
   /** Mouse position relative to the game canvas (CSS px), null until the mouse has moved over it. */
   mouse: Vec | null;
 }
@@ -26,6 +26,7 @@ export class InputController {
   private mouse: Vec | null = null;
   private attackEdge = false;
   private dodgeEdge = false;
+  private partEdge = false;
   private readonly cleanup: Array<() => void> = [];
 
   constructor(private readonly target: HTMLElement) {
@@ -71,18 +72,20 @@ export class InputController {
     this.keys.add(e.code);
     if (KEY_ATTACK.has(e.code)) this.attackEdge = true;
     if (KEY_DODGE.has(e.code)) this.dodgeEdge = true;
+    if (e.code === 'Tab' || e.code === 'KeyR') this.partEdge = true;
   }
 
   private onKeyUp(e: KeyboardEvent): void { this.keys.delete(e.code); }
 
   pressDodge(): void { if (this.enabled) this.dodgeEdge = true; }
   pressAttack(): void { if (this.enabled) this.attackEdge = true; }
+  pressPart(): void { if (this.enabled) this.partEdge = true; }
 
   /** Clear every held input and pending edge (pause, blur, pointercancel, scene exit). */
   reset(): void {
     this.keys.clear();
     this.mouseHeld = false;
-    this.attackEdge = this.dodgeEdge = false;
+    this.attackEdge = this.dodgeEdge = this.partEdge = false;
     this.touch.moveX = this.touch.moveY = 0;
     this.touch.attackHeld = false;
   }
@@ -94,10 +97,10 @@ export class InputController {
     const out: RawInput = {
       moveX: mx, moveY: my,
       attackHeld: this.mouseHeld || this.touch.attackHeld || [...this.keys].some((k) => KEY_ATTACK.has(k)),
-      attackPressed: this.attackEdge, dodgePressed: this.dodgeEdge,
+      attackPressed: this.attackEdge, dodgePressed: this.dodgeEdge, partPressed: this.partEdge,
       mouse: this.mouse,
     };
-    this.attackEdge = this.dodgeEdge = false;
+    this.attackEdge = this.dodgeEdge = this.partEdge = false;
     return out;
   }
 

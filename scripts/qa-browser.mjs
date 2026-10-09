@@ -11,7 +11,7 @@ const results = [];
 const rec = (id, ok, note) => { results.push({ id, ok, note }); console.log(ok ? 'PASS' : 'FAIL', id, note ?? ''); };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] }).catch(() => chromium.launch({ args: ['--no-sandbox'] }));
 const errors = [];
-const st = (p) => p.evaluate(() => { const s = window.__wildforge.state.player; return { x: s.pos.x, y: s.pos.y, dodge: !!s.dodge, stam: s.stamina, attacks: s.attackCounter, t: window.__wildforge.state.elapsed, paused: window.__wildforge.pause.paused }; });
+const st = (p) => p.evaluate(() => { const h = window.__wildforge.hunt; const s = h.player; return { x: s.pos.x, y: s.pos.y, dodge: !!s.dodge, stam: s.stamina, attacks: s.attackCounter, t: h.elapsed, paused: window.__wildforge.pause.paused }; });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function open(viewport, opts = {}) {
@@ -20,8 +20,10 @@ async function open(viewport, opts = {}) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(URL + (opts.touch ? '&touch=1' : ''));
-  await page.waitForFunction(() => window.__wildforge?.state?.player);
-  await page.mouse.click(viewport.width / 2, viewport.height / 2).catch(() => {});
+  await page.waitForFunction(() => window.__wildforge?.hunt?.player);
+  await page.click('#btn-start', { timeout: 1500 }).catch(() => {}); // start screen (portrait: hidden behind rotate overlay)
+  // M0 checks test movement/input only: park the monster so it cannot interfere
+  await page.evaluate(() => { const m = window.__wildforge.hunt.monster; m.phase = 'stagger'; m.t = 0; m.staggerDur = 1e9; });
   return { ctx, page };
 }
 
@@ -124,6 +126,7 @@ try {
   await page.screenshot({ path: 'qa-artifacts/m0-settings.png' });
   await page.setViewportSize({ width: 844, height: 390 }); await sleep(200);
   await page.click('#btn-close-settings'); await sleep(200);
+  await page.click('#btn-start', { timeout: 3000 });
   rec('rotate-to-landscape-unpauses', !(await st(page)).paused);
   await ctx.close();
 

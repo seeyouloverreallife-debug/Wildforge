@@ -1,8 +1,11 @@
 # CHECKPOINT
 
-Milestone: **M0 / v0.0.1** — gate: เดิน/หลบทั้งคอมและ touch ไม่ค้างหลัง blur → ผ่านใน emulation (ดู QA_REPORT) ยังไม่ผ่านบนมือถือจริง
+Milestone: **M1 / v0.0.2** — กิ้งก่าถุงไฟ 1 ตัว ล่าจบ/แพ้ได้ ท่าอ่านได้ อวัยวะแตกเปลี่ยน AI จริง → gate ผ่านใน emulation + บอท (ดู QA_REPORT) **ยังไม่ผ่านการเล่นโดยมนุษย์/มือถือจริง**
 
-เสร็จ: scaffold, arena, player (เดิน/หลบ/โจมตี placeholder), camera, keyboard/mouse, touch joystick+buttons, pause/blur/portrait, fixed step, settings, debug overlay, tests, QA script
-ค้าง/รู้ปัญหา: DPR cap, เสียง, owner playtest บนมือถือจริง, ตรวจเอกสาร official ของ dependency (ดู DESIGN_DEVIATIONS #9), ตัดสินใจ #2 (เดินระหว่างฟัน)
+เสร็จ: ตรวจ dependency/clean install + บันทึก Node/npm • ปรับเดินระหว่างฟัน+ตารางสั่นจอ (ค่าเสนอ) • touch reset เมื่อ resize/หมุน • ember_gecko 3 ท่า + telegraph/lock • damage/i-frame/stagger/part break • hunt lifecycle + results • ปุ่มเลือกส่วน + soft-lock • tests 42 + browser 52 + M0 regression 26 • คลิป 1 รอบ
 
-Next exact task (M1): สร้าง `src/data/monsters.ts` (ember_gecko: HP 1400, fire_sac 220, jaw 180, 3 ท่า §8.1) + `src/domain/combat.ts` (hit resolution ตาม §7.3–7.4, attackId dedupe, part break ก่อน death) + `src/domain/monsterAI.ts` (FSM + seeded weighted selection) แล้วต่อเข้า `ArenaScene.update` (ใช้ `activeAttackShape()` ใน `src/domain/player.ts` เป็น hit shape ของผู้เล่น); เพิ่ม HuntState + RESULTS (ยังไม่ต้องมี save จนถึง M2); เพิ่มปุ่ม touch เลือกส่วน/ยา และ soft-lock
+ค้าง/รู้ปัญหา: (1) ตาราง walk/shake จริงจากเจ้าของโครงการ (DESIGN_DEVIATIONS #1) (2) Focus Strike + ยาฟื้น (3) stuck-handling §13 (4) DPR cap (5) abandoned-on-reload ต้องรอ persistence (6) owner playtest จริงบนมือถือ — บอทชนะไม่ได้พิสูจน์ความยาก/ความสนุก (7) เอกสาร official เข้าตรงไม่ได้ ตรวจซ้ำเมื่อมีเน็ต
+
+ห้ามเพิ่มมอนสเตอร์/คราฟต์จนกว่าเจ้าของโครงการลองเล่น M1 และตัดสินใจเรื่องค่าความยาก/อ่านท่า (ตามคำสั่ง)
+
+Next exact task (M2 หลังเจ้าของอนุมัติ): `src/persistence/save.ts` (envelope savedAt/schemaVersion/payload/checksum, primary+backup, validate→write→read-back) + `src/domain/rewards.ts` (settlement idempotent ด้วย huntId/lastSettlementId, base 2 ของ target material + part bonus 1 ต่อส่วนที่ `HuntResult.brokenPartIds`) + `src/domain/crafting.ts` (4/6 หน่วย) + หน้า base/loadout/เลือก targetMaterial; ต่อเข้า `onResult` ใน `src/main.ts` (ตอนนี้แสดงผลอย่างเดียว) และเพิ่ม Focus Strike + ยาฟื้นใน `src/domain/player.ts`
