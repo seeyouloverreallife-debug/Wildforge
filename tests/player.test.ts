@@ -120,3 +120,35 @@ describe('attack', () => {
     expect(p.attack?.facing).toBeCloseTo(0, 5);
   });
 });
+
+describe('attack chaining (input buffer)', () => {
+  it('a tap during the swing is remembered and the next swing starts the moment the previous ends', () => {
+    const p = mk();
+    stepPlayer(p, { ...emptyIntent(), attackPressed: true }, DT, OPEN_WORLD);
+    const firstId = p.attack!.id;
+    run(p, 0.2, {}); // mid swing
+    stepPlayer(p, { ...emptyIntent(), attackPressed: true }, DT, OPEN_WORLD); // tap far earlier than 0.15 s before the end
+    let started = -1;
+    for (let i = 0; i < 60 && started < 0; i++) {
+      stepPlayer(p, emptyIntent(), DT, OPEN_WORLD);
+      if (p.attack && p.attack.id !== firstId) started = i;
+    }
+    expect(started).toBeGreaterThanOrEqual(0);
+    expect(p.attack!.t).toBeLessThan(0.05); // fresh swing, no dead gap
+    expect(p.attackCounter).toBe(2);
+  });
+  it('taps are not queued: five taps in one swing still produce a single follow-up', () => {
+    const p = mk();
+    stepPlayer(p, { ...emptyIntent(), attackPressed: true }, DT, OPEN_WORLD);
+    for (let i = 0; i < 5; i++) stepPlayer(p, { ...emptyIntent(), attackPressed: true }, DT, OPEN_WORLD);
+    run(p, 0.62, {});
+    expect(p.attackCounter).toBe(2);
+  });
+  it('a stale tap still expires 0.15 s after the player becomes free', () => {
+    const p = mk();
+    p.stamina = 0; // cannot dodge, buffered dodge must lapse
+    run(p, 0.05, { dodgePressed: true });
+    run(p, 0.3, {});
+    expect(p.buffer).toBeNull();
+  });
+});

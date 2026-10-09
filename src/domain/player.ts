@@ -140,7 +140,10 @@ export function stepPlayer(p: PlayerState, intent: Intent, dt: number, world: Wo
 
   // Input buffer: one slot, latest press wins, expires after 0.15 s.
   if (p.buffer) {
-    p.buffer.age += dt;
+    // A tapped attack waits for the current swing to end (one slot, never a queue) so tapping chains smoothly (§7.2);
+    // the 0.15 s window only starts counting once the player is free to act on it.
+    const waiting = p.buffer.kind === 'attack' && !!p.attack;
+    if (!waiting) p.buffer.age += dt;
     if (p.buffer.age > PLAYER.inputBuffer) p.buffer = null;
   }
   if (intent.dodgePressed) p.buffer = { kind: 'dodge', age: 0 };

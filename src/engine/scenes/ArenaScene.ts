@@ -325,14 +325,27 @@ export class ArenaScene extends Phaser.Scene {
         // the dash itself is the shape; show the path
         if (p.attack.dashFrom) g.lineStyle(PLAYER.radius * 1.4, COL.arc, 0.35).lineBetween(p.attack.dashFrom.x, p.attack.dashFrom.y, x, y);
       } else if (!(p.attack.kind === 'skill' && !sk.hit)) {
+        // Swing animation: the blade sweeps across the arc during the active frames (alternating direction per chain),
+        // then a fading trail stays through the recovery so consecutive hits read as one flowing motion.
+        const A = p.attack, k = phase === 'active' ? (A.t - A.startup) / A.active : phase === 'recovery' ? 1 : 0;
+        const rec = phase === 'recovery' ? Math.min(1, (A.t - A.startup - A.active) / A.recovery) : 0;
+        const dirSign = A.id % 2 === 0 ? -1 : 1;
         if (w.shape.kind === 'sector') {
-          const half = (w.shape.arcDeg * Math.PI) / 360;
-          if (aOn) g.fillStyle(COL.arc, aOn).slice(x, y, w.shape.range, f0 - half, f0 + half, false).fillPath();
-          g.lineStyle(3, COL.arc, strokeA).slice(x, y, w.shape.range, f0 - half, f0 + half, false).strokePath();
-        } else { // spear: thin capsule
-          const ex = x + Math.cos(f0) * w.shape.length, ey = y + Math.sin(f0) * w.shape.length;
-          if (aOn) g.lineStyle(w.shape.halfWidth * 2, COL.arc, aOn).lineBetween(x, y, ex, ey);
-          g.lineStyle(3, COL.arc, strokeA).lineBetween(x, y, ex, ey);
+          const half = (w.shape.arcDeg * Math.PI) / 360, R = w.shape.range;
+          const from = f0 - dirSign * half, lead = from + dirSign * 2 * half * k;
+          const a0 = Math.min(from, lead), a1 = Math.max(from, lead);
+          if (phase === 'startup') g.lineStyle(3, COL.arc, 0.6).lineBetween(x, y, x + Math.cos(from) * R * 0.8, y + Math.sin(from) * R * 0.8);
+          else {
+            const trailA = phase === 'active' ? 0.5 : 0.4 * (1 - rec);
+            if (a1 > a0) g.fillStyle(COL.arc, trailA).slice(x, y, R, a0, a1, false).fillPath();
+            g.lineStyle(phase === 'active' ? 6 : 3, COL.arc, phase === 'active' ? 1 : 0.8 * (1 - rec)).lineBetween(x, y, x + Math.cos(lead) * R, y + Math.sin(lead) * R);
+          }
+        } else { // spear: thrust out during active, pull back through recovery
+          const L = w.shape.length;
+          const ext = phase === 'startup' ? 0.15 : phase === 'active' ? 0.15 + 0.85 * k : 1 - 0.85 * rec;
+          const ex = x + Math.cos(f0) * L * ext, ey = y + Math.sin(f0) * L * ext;
+          g.lineStyle(w.shape.halfWidth * 2, COL.arc, phase === 'active' ? 0.5 : 0.25).lineBetween(x, y, ex, ey);
+          g.lineStyle(phase === 'active' ? 6 : 3, COL.arc, 1).lineBetween(x, y, ex, ey);
         }
       }
     }
