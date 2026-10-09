@@ -63,7 +63,7 @@ describe('fang module', () => {
     expect(hpAfterHit - h.monster.hp).toBe(12); // 4 pulses × 3
     expect(h.monster.partHp.jaw).toBe(partAfterHit);
     expect(h.monster.staggerMeter).toBe(0); // stagger never accumulates from DOT (monster is staggered here, so also check no extra events)
-    expect(h.bleed).toBeNull();
+    expect(h.dot).toBeNull();
   });
   it('tier II: hit 16, bleed 3.3 carried → 13 total over 4 pulses', () => {
     const h = dummy(build('fang', null, { fang: 2 }));
@@ -86,7 +86,7 @@ describe('fang module', () => {
     expect(ticks.length).toBeGreaterThanOrEqual(4);
     expect(ticks.length).toBeLessThanOrEqual(5);
     expect(ticks.every((t) => t.type === 'dot_tick' && t.damage === 3)).toBe(true);
-    expect(h.bleed).toBeNull();
+    expect(h.dot).toBeNull();
   });
   it('passive: normal attack ×1.08 (round 11); tier II ×1.10 (11)', () => {
     const h = dummy(build(null, 'fang'));

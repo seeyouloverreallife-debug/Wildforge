@@ -1,0 +1,264 @@
+[
+ {
+  "id": "start-recipes-only-fang-ember",
+  "ok": true,
+  "note": "โมดูลเขี้ยว — ยังไม่มี | โมดูลถุงไฟ — ยังไม่มี"
+ },
+ {
+  "id": "start-missions-only-hunt_gecko",
+  "ok": true
+ },
+ {
+  "id": "prep-tip-hidden-before-first-clear",
+  "ok": true
+ },
+ {
+  "id": "first-gecko-clear-lists-unlocks",
+  "ok": true,
+  "note": "ปลดล็อก: ภารกิจล่าปูเกราะพิษ / ปลดล็อก: ภารกิจจับกิ้งก่าถุงไฟ / ปลดล็อก: อาวุธ: หอกกิ่ง"
+ },
+ {
+  "id": "first-clear-saved-unlocks",
+  "ok": true
+ },
+ {
+  "id": "crab-recipes-appear-after-gecko-clear",
+  "ok": true,
+  "note": "โมดูลเขี้ยว — ยังไม่มี | โมดูลถุงไฟ — ยังไม่มี | โมดูลเกราะ — ยังไม่มี | โมดูลพิษ — ยังไม่มี"
+ },
+ {
+  "id": "spear-selectable-after-gecko-clear",
+  "ok": true
+ },
+ {
+  "id": "crab-win-pays-crab-materials-and-unlocks-sail",
+  "ok": true,
+  "note": "ผล: เสร็จแล้ว — ล่าปูเกราะพิษ / เวลา: 0:10 / วัสดุหลัก: เกล็ดกระดอง ×2 / โบนัสส่วนที่ทำลาย: กระดอง → เกล็ดกระดอง ×1 / โบนัสส่วนที่ทำลาย: ถุงพิษ → ถุงพิษ ×1 / Research +1 / ปลดล็อก: ภารกิจล่ากิ้งก่าปีกลม / ปลดล็อก: ภารกิจจับปูเกราะพิษ / ส่วนที่ทำลาย: กระดอง, ถุงพิษ / ท่าที่เห็น: บ่อพิษ, ก้ามทุบ, พุ่งข้าง"
+ },
+ {
+  "id": "sail-win-unlocks-sail-capture-and-wing-horn-recipes",
+  "ok": true,
+  "note": "ผล: เสร็จแล้ว — ล่ากิ้งก่าปีกลม / เวลา: 0:04 / วัสดุหลัก: เขาทู่ ×2 / โบนัสส่วนที่ทำลาย: ปีก → ปีกใบเรือ ×1 / Research +1 / ปลดล็อก: ภารกิจจับกิ้งก่าปีกลม / ส่วนที่ทำลาย: ปีก / ท่าที่เห็น: ร่อนผ่าน, เขากระแทก"
+ },
+ {
+  "id": "all-six-recipes-after-all-three-cleared",
+  "ok": true,
+  "note": "โมดูลเขี้ยว — ยังไม่มี | โมดูลถุงไฟ — ยังไม่มี | โมดูลเกราะ — ยังไม่มี | โมดูลพิษ — ยังไม่มี | โมดูลปีก — ยังไม่มี | โมดูลเขา — ยังไม่มี"
+ },
+ {
+  "id": "bestiary-shows-seen-moves-and-broken-parts-only",
+  "ok": true,
+  "note": "กิ้งก่าถุงไฟสัตว์สี่ขาหัวกว้าง ถุงใต้คอเรืองแสงส้มล่า 1 ครั้ง • ชนะ 1 • จับได้ 0 • เวลาดีที่สุด ล่า 0:03 / จับ —วัสดุ: ถุงความร้อน, เขี้ยว • คำใบ้: หลบข้างตอนมั"
+ },
+ {
+  "id": "Q11-fang_cleaver+fang-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1385 stam 100->80 cd 5.2 hud=[L] ตัดเลือด|แรง 20|5.1s guard=false"
+ },
+ {
+  "id": "Q11-fang_cleaver+ember-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1400 stam 100->70 cd 9.2 hud=[L] ถุงไฟ|แรง 30|9.2s guard=false"
+ },
+ {
+  "id": "Q11-fang_cleaver+shell-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1400 stam 100->75 cd 8.0 hud=[L] เกราะสวน|แรง 25|8.0s guard=true"
+ },
+ {
+  "id": "Q11-fang_cleaver+venom-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1395 stam 100->70 cd 9.1 hud=[L] พ่นพิษ|แรง 30|9.1s guard=false"
+ },
+ {
+  "id": "Q11-fang_cleaver+wing-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1388 stam 100->75 cd 7.0 hud=[L] พุ่งลม|แรง 25|7.0s guard=false"
+ },
+ {
+  "id": "Q11-fang_cleaver+horn-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1380 stam 100->70 cd 8.4 hud=[L] กระแทกเขา|แรง 30|8.4s guard=false"
+ },
+ {
+  "id": "Q11-branch_spear+fang-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1385 stam 100->80 cd 5.2 hud=[L] ตัดเลือด|แรง 20|5.2s guard=false"
+ },
+ {
+  "id": "Q11-branch_spear+ember-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1400 stam 100->70 cd 9.1 hud=[L] ถุงไฟ|แรง 30|9.1s guard=false"
+ },
+ {
+  "id": "Q11-branch_spear+shell-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1400 stam 100->75 cd 7.9 hud=[L] เกราะสวน|แรง 25|7.9s guard=true"
+ },
+ {
+  "id": "Q11-branch_spear+venom-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1395 stam 100->70 cd 9.2 hud=[L] พ่นพิษ|แรง 30|9.2s guard=false"
+ },
+ {
+  "id": "Q11-branch_spear+wing-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1388 stam 100->75 cd 7.0 hud=[L] พุ่งลม|แรง 25|7.0s guard=false"
+ },
+ {
+  "id": "Q11-branch_spear+horn-skill-effect-cost-cooldown",
+  "ok": true,
+  "note": "hp 1400->1380 stam 100->70 cd 8.4 hud=[L] กระแทกเขา|แรง 30|8.4s guard=false"
+ },
+ {
+  "id": "capture-hud-shows-reason-when-not-ready",
+  "ok": true,
+  "note": "◆ จับ [C]: ลดพลังชีวิตให้ต่ำกว่า 25% ก่อน"
+ },
+ {
+  "id": "Q08-capture-succeeds-at-low-hp-in-trap",
+  "ok": true,
+  "note": "{\"st\":\"SUCCESS\",\"ph\":\"captured\",\"hp\":280}"
+ },
+ {
+  "id": "capture-results-rewards-research2-icon",
+  "ok": true,
+  "note": "ผล: เสร็จแล้ว — จับกิ้งก่าถุงไฟ / เวลา: 0:03 / วัสดุหลัก: เขี้ยว ×2 / Research +2 / จับกิ้งก่าถุงไฟครั้งแรก — ไอคอนสัตว์ถูกเพิ่มที่ฐาน / ส่วนที่ทำลาย: ไม่มี / ท่าที่เห็น: พ่นไฟ"
+ },
+ {
+  "id": "base-shows-captured-icon",
+  "ok": true
+ },
+ {
+  "id": "Q09-dodge-during-setup-cancels-and-keeps-charge",
+  "ok": true
+ },
+ {
+  "id": "Q09-trap-set-after-0.6s-charge-spent",
+  "ok": true
+ },
+ {
+  "id": "Q09-high-hp-animal-in-trap-not-captured-trap-stays",
+  "ok": true
+ },
+ {
+  "id": "Q09-once-hp-drops-the-same-trap-captures",
+  "ok": true
+ },
+ {
+  "id": "Q10-killing-a-capture-target-fails-with-reason",
+  "ok": true,
+  "note": "เป้าหมายต้องจับเป็น — สัตว์ถูกล่าจนตาย"
+ },
+ {
+  "id": "Q10-timeout-in-capture-mission-fails",
+  "ok": true
+ },
+ {
+  "id": "vine-prompt-and-context-button-visible-near-vine",
+  "ok": true,
+  "note": "[E] ดึงเถาวัลย์ รัดสัตว์ 1.5 วินาที (ใช้ได้ครั้งเดียว)"
+ },
+ {
+  "id": "Q16-vine-roots-monster-1.5s-once",
+  "ok": true
+ },
+ {
+  "id": "Q16-vine-second-use-refused",
+  "ok": true
+ },
+ {
+  "id": "Q16-torch-prompt-when-monster-not-on-vine",
+  "ok": true
+ },
+ {
+  "id": "Q16-torch-burns-vine-once",
+  "ok": true
+ },
+ {
+  "id": "Q16-burnt-area-is-walkable",
+  "ok": true,
+  "note": "x=1336"
+ },
+ {
+  "id": "Q16-vine-thicket-blocks-before-burn",
+  "ok": true,
+  "note": "x=1190"
+ },
+ {
+  "id": "Q16-charge-into-rock-is-stopped-with-+0.5s-recovery",
+  "ok": true,
+  "note": "phase=recovery recoveryDur=1.3"
+ },
+ {
+  "id": "Q17-pause-freezes-dot-cooldown-trap-potion-channel",
+  "ok": true,
+  "note": "dot 1.97→1.97 cd 4.05→4.05 trap 0.72→0.72 chan=potion"
+ },
+ {
+  "id": "Q17-resume-continues-potion-and-timers",
+  "ok": true,
+  "note": "potions=1 hp 60→95"
+ },
+ {
+  "id": "Q17-pause-during-capture-restraint-holds-the-results",
+  "ok": true,
+  "note": "results stay hidden while paused"
+ },
+ {
+  "id": "Q17-results-appear-after-resume",
+  "ok": true
+ },
+ {
+  "id": "potion-heals-35-after-0.7s",
+  "ok": true,
+  "note": "hp=85"
+ },
+ {
+  "id": "observation-saved-after-failed-hunt-but-no-rewards",
+  "ok": true,
+  "note": "กิ้งก่าถุงไฟสัตว์สี่ขาหัวกว้าง ถุงใต้คอเรืองแสงส้มล่า 1 ครั้ง • ชนะ 0 • จับได้ 0 • เวลาดีที่สุด ล่า — / จับ —วัสดุและคำใบ้: ชนะครั้งแรกเพื่อ"
+ },
+ {
+  "id": "migration-notice-lists-derived-unlocks",
+  "ok": true,
+  "note": "ข้อความปลดล็อกจากความคืบหน้าเดิม: ภารกิจล่าปูเกราะพิษ, ภารกิจจับกิ้งก่าถุงไฟ, อาวุธ: หอกกิ่งรับทราบ"
+ },
+ {
+  "id": "migration-keeps-materials-research-pays-nothing",
+  "ok": true
+ },
+ {
+  "id": "migration-persisted-with-new-revision",
+  "ok": true
+ },
+ {
+  "id": "migration-idempotent-on-reload",
+  "ok": true
+ },
+ {
+  "id": "Q15-844x390-8-buttons-no-overlap-in-view-clear-of-joystick",
+  "ok": true,
+  "note": " minLeft=584 zone=405"
+ },
+ {
+  "id": "Q15-740x360-8-buttons-no-overlap-in-view-clear-of-joystick",
+  "ok": true,
+  "note": " minLeft=480 zone=355"
+ },
+ {
+  "id": "Q15-667x375-8-buttons-no-overlap-in-view-clear-of-joystick",
+  "ok": true,
+  "note": " minLeft=407 zone=320"
+ },
+ {
+  "id": "Q15-568x320-8-buttons-no-overlap-in-view-clear-of-joystick",
+  "ok": true,
+  "note": " minLeft=308 zone=273"
+ },
+ {
+  "id": "no-console-errors",
+  "ok": true,
+  "note": ""
+ }
+]

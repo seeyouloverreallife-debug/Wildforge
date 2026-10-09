@@ -46,7 +46,7 @@ describe('SaveManager', () => {
   });
   it('settlement save failure then retry pays exactly once', () => {
     const kv = new MemKV(); const a = mgr(kv);
-    const res: HuntResult = { huntId: 'h1', outcome: 'success', failReason: null, elapsed: 100, brokenPartIds: [], movesSeen: [] };
+    const res: HuntResult = { huntId: 'h1', missionId: 'hunt_gecko', monsterId: 'ember_gecko', objective: 'hunt', captured: false, outcome: 'success', failReason: null, elapsed: 100, brokenPartIds: [], movesSeen: [] };
     const ctx = { missionId: 'hunt_gecko', targetMaterialId: 'fang' } as const;
     kv.failSet = true;
     const s1 = settleHunt(a.state, { ...res, brokenPartIds: [] }, ctx);

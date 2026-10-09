@@ -1,12 +1,15 @@
 import {
-  AVAILABLE_MODULES, AVAILABLE_WEAPONS, CONTENT_VERSION, MATERIAL_IDS, MISSION_IDS, MONSTER_IDS, SCHEMA_VERSION, WEAPON_IDS,
+  CONTENT_VERSION, START_MISSIONS, MATERIAL_IDS, MISSION_IDS, MONSTER_IDS, SCHEMA_VERSION, WEAPON_IDS,
   isModuleId, type MaterialId, type MissionId, type ModuleId, type MonsterId, type Tier, type WeaponId,
 } from '../data/content';
 
 export interface BestiaryEntry {
   hunts: number;
+  /** hunt-objective wins (drive first-clear unlocks) */
   clears: number;
+  captures: number;
   bestTimeHunt: number | null;
+  bestTimeCapture: number | null;
   movesSeen: string[];
   partsBroken: string[];
 }
@@ -34,7 +37,7 @@ export function newSave(): SaveData {
   return {
     schemaVersion: SCHEMA_VERSION, contentVersion: CONTENT_VERSION, materials, modules: {},
     loadout: { weaponId: 'fang_cleaver', primaryModuleId: null, secondaryModuleId: null },
-    unlockedWeaponIds: ['fang_cleaver'], unlockedMissionIds: ['hunt_gecko'], research: 0, bestiary: {},
+    unlockedWeaponIds: ['fang_cleaver'], unlockedMissionIds: [...START_MISSIONS], research: 0, bestiary: {},
     pinnedRecipeId: null, pendingHunt: null, lastSettlementId: null,
   };
 }
@@ -45,6 +48,7 @@ export type Validation = { ok: true; data: SaveData } | { ok: false; reason: str
 const fail = (reason: string): Validation => ({ ok: false, reason });
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 1_000_000;
+const isTime = (v: unknown): boolean => v === null || (typeof v === 'number' && Number.isFinite(v) && v >= 0);
 const known = <T extends string>(list: readonly T[], v: unknown): v is T => typeof v === 'string' && (list as readonly string[]).includes(v);
 
 /** Strict validation (§19). Unknown IDs, bad counts or future schemas are rejected with a reason — never silently dropped. */
@@ -78,10 +82,8 @@ export function validateSave(raw: unknown): Validation {
     const v = lo[key];
     if (v !== null && !isModuleId(v)) return fail(`โมดูลใน loadout ไม่รู้จัก: ${String(v)}`);
     if (v !== null && !modules[v as ModuleId]) return fail(`ติดตั้งโมดูลที่ไม่ได้ครอบครอง: ${String(v)}`);
-    if (v !== null && !AVAILABLE_MODULES.includes(v as ModuleId)) return fail(`โมดูล ${String(v)} ยังไม่เปิดในรุ่นนี้`);
   }
   if (lo.primaryModuleId !== null && lo.primaryModuleId === lo.secondaryModuleId) return fail('ติดโมดูลเดียวกันสองช่องไม่ได้');
-  if (!AVAILABLE_WEAPONS.includes(lo.weaponId)) return fail(`อาวุธ ${lo.weaponId} ยังไม่เปิดในรุ่นนี้`);
 
   if (!Array.isArray(raw.unlockedWeaponIds) || !raw.unlockedWeaponIds.every((x) => known(WEAPON_IDS, x))) return fail('unlockedWeaponIds ไม่ถูกต้อง');
   if (!raw.unlockedWeaponIds.includes(lo.weaponId)) return fail('อาวุธใน loadout ยังไม่ปลดล็อก');
@@ -93,13 +95,19 @@ export function validateSave(raw: unknown): Validation {
   for (const [k, v] of Object.entries(raw.bestiary)) {
     if (!known(MONSTER_IDS, k)) return fail(`สัตว์ที่ไม่รู้จักในสมุด: ${k}`);
     if (!isObj(v) || !isCount(v.hunts) || !isCount(v.clears) || !Array.isArray(v.movesSeen) || !Array.isArray(v.partsBroken)
-      || !(v.bestTimeHunt === null || (typeof v.bestTimeHunt === 'number' && Number.isFinite(v.bestTimeHunt) && v.bestTimeHunt >= 0))
-      || !v.movesSeen.every((x) => typeof x === 'string') || !v.partsBroken.every((x) => typeof x === 'string')) return fail(`ข้อมูลสมุด ${k} ไม่ถูกต้อง`);
-    bestiary[k] = { hunts: v.hunts, clears: v.clears, bestTimeHunt: v.bestTimeHunt as number | null, movesSeen: [...(v.movesSeen as string[])], partsBroken: [...(v.partsBroken as string[])] };
+      || !isTime(v.bestTimeHunt) || !v.movesSeen.every((x) => typeof x === 'string') || !v.partsBroken.every((x) => typeof x === 'string')) return fail(`ข้อมูลสมุด ${k} ไม่ถูกต้อง`);
+    // M2 saves have no capture fields: migrate with defaults instead of rejecting
+    const captures = v.captures === undefined ? 0 : v.captures;
+    const bestTimeCapture = v.bestTimeCapture === undefined ? null : v.bestTimeCapture;
+    if (!isCount(captures) || !isTime(bestTimeCapture)) return fail(`ข้อมูลสมุด ${k} ไม่ถูกต้อง`);
+    bestiary[k] = {
+      hunts: v.hunts, clears: v.clears, captures, bestTimeHunt: v.bestTimeHunt as number | null, bestTimeCapture: bestTimeCapture as number | null,
+      movesSeen: [...(v.movesSeen as string[])], partsBroken: [...(v.partsBroken as string[])],
+    };
   }
 
   const pin = raw.pinnedRecipeId;
-  if (pin !== null && !(isModuleId(pin) && AVAILABLE_MODULES.includes(pin))) return fail('pinnedRecipeId ไม่ถูกต้อง');
+  if (pin !== null && !isModuleId(pin)) return fail('pinnedRecipeId ไม่ถูกต้อง');
 
   let pendingHunt: PendingHunt | null = null;
   if (raw.pendingHunt !== null) {

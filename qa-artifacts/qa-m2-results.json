@@ -7,7 +7,7 @@
  {
   "id": "hunt1-success-rewards-paid-in-memory",
   "ok": true,
-  "note": "{\"fang\":0,\"heat_bladder\":3,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0} | ผล: เสร็จแล้ว — ล่ากิ้งก่าถุงไฟ / เวลา: 0:03 / วัสดุหลัก: ถุงความร้อน ×2 / โบนัสส่วนที่ทำลาย: ถุงไฟ → ถุงความร้อน ×1 / Research +1 / ส่วนที่ทำลาย: ถุงไฟ / ท่าที่เห็น: กัดพุ่ง"
+  "note": "{\"fang\":0,\"heat_bladder\":3,\"shell_scale\":0,\"venom_sac\":0,\"sail_wing\":0,\"blunt_horn\":0} | ผล: เสร็จแล้ว — ล่ากิ้งก่าถุงไฟ / เวลา: 0:03 / วัสดุหลัก: ถุงความร้อน ×2 / โบนัสส่วนที่ทำลาย: ถุงไฟ → ถุงความร้อน ×1 / Research +1 / ปลดล็อก: ภารกิจล่าปูเกราะพิษ / ปลดล็อก: ภารกิจจับกิ้งก่าถุงไฟ / ปลดล็อก: อาวุธ: หอกกิ่ง / ส่วนที่ทำลาย: ถุงไฟ / ท่าที่เห็น: กวาดหาง"
  },
  {
   "id": "hunt1-results-say-saved",
@@ -60,22 +60,22 @@
  {
   "id": "prep-shows-ember-skill-cost-cd",
   "ok": true,
-  "note": "อาวุธ: ดาบเขี้ยวโมดูลหลัก: โมดูลถุงไฟ ระดับ 1สกิล: ถุงไฟ — ใช้แรง 30, คูลดาวน์ 10.0 วินาทีโมดูลเสริม: ไม่มี"
+  "note": "อาวุธ: ดาบเขี้ยวโมดูลหลัก: โมดูลถุงไฟ ระดับ 1สกิล: ถุงไฟ — ใช้แรง 30, คูลดาวน์ 10.0 วินาทีโมดูลเสริม: ไม่มีเครื่องมือ: ยาฟื้น ×2 • คบเพลิง/เถาวัลย์ที่จุดเถาวัลย์"
  },
  {
   "id": "Q11-ember-skill-places-zone-cost30-cd10",
   "ok": true,
-  "note": "{\"zone\":{\"r\":85},\"cd\":9.699999999999985,\"stam\":70,\"hud\":\"9.7s\",\"btn\":\"9.7\"}"
+  "note": "{\"zone\":{\"r\":85},\"cd\":9.649999999999983,\"stam\":70,\"hud\":\"9.6s\",\"btn\":\"9.6\"}"
  },
  {
   "id": "Q11-HUD-cooldown-matches-state",
   "ok": true,
-  "note": "hud=9.7s btn=9.7 state=9.70"
+  "note": "hud=9.6s btn=9.6 state=9.65"
  },
  {
   "id": "skill-blocked-during-cooldown",
   "ok": true,
-  "note": "stamina 70→71"
+  "note": "stamina 70→72"
  },
  {
   "id": "abandon-from-pause-pays-nothing-and-clears-pending",
@@ -99,12 +99,12 @@
  {
   "id": "Q11-fang-skill-bleeds-and-passive-cooldown-0.94",
   "ok": true,
-  "note": "{\"bleed\":true,\"cd\":5.373333333333334,\"hp\":1385,\"hud\":\"[L] ตัดเลือด\"}"
+  "note": "{\"bleed\":true,\"cd\":5.356666666666667,\"hp\":1385,\"hud\":\"[L] ตัดเลือด\"}"
  },
  {
   "id": "defeat-pays-nothing-keeps-observations",
   "ok": true,
-  "note": "{\"ember_gecko\":{\"hunts\":1,\"clears\":0,\"bestTimeHunt\":null,\"movesSeen\":[\"fire_breath\"],\"partsBroken\":[]}}"
+  "note": "{\"ember_gecko\":{\"hunts\":1,\"clears\":0,\"captures\":0,\"bestTimeHunt\":null,\"bestTimeCapture\":null,\"movesSeen\":[\"fire_breath\"],\"partsBroken\":[]}}"
  },
  {
   "id": "Q12-save-failure-shows-error-not-success",
@@ -231,7 +231,7 @@
  {
   "id": "Q14-10-hunts-heap-no-clear-growth",
   "ok": true,
-  "note": "heap MB: 14.5, 14.6, 14.8, 14.8, 14.9, 14.3, 14.3, 14.4, 14.4, 14.4 | ~-60 KB/hunt after hunt 3"
+  "note": "heap MB: 14.7, 14.9, 15.1, 15.2, 14.5, 14.6, 14.6, 14.6, 14.7, 14.7 | ~-62 KB/hunt after hunt 3"
  },
  {
   "id": "layout-844x390-screens-usable",

@@ -17,23 +17,26 @@
         <div class="bar-row"><span class="bar-label">HP</span><div class="bar"><div id="hp-fill" class="fill hp"></div></div><span id="hp-text" class="bar-num">100</span></div>
         <div class="bar-row"><span class="bar-label">แรง</span><div class="bar"><div id="st-fill" class="fill st"></div></div><span id="st-text" class="bar-num">100</span></div>
         <div id="skill-hud" class="skill-hud"><span id="skill-name"></span> <span id="skill-cost"></span> <span id="skill-cd" class="skill-cd"></span></div>
+        <div id="item-hud" class="skill-hud"><span id="potion-hud">ยา ×2 [Q]</span> <span id="capture-hud" hidden></span></div>
       </div>
       <div id="boss" aria-label="มอนสเตอร์">
         <div class="boss-top"><span id="boss-name">กิ้งก่าถุงไฟ</span><span id="timer" class="timer" aria-label="เวลาล่า">0:00</span></div>
         <div class="bar boss-bar"><div id="boss-fill" class="fill boss"></div></div>
-        <div class="chips" id="chips">
-          <span class="chip" data-part="body">ตัว</span><span class="chip" data-part="fire_sac">ถุงไฟ</span><span class="chip" data-part="jaw">ขากรรไกร</span>
-        </div>
+        <div class="chips" id="chips"></div>
       </div>
       <button id="btn-pause" class="hud-btn" type="button" aria-label="หยุดชั่วคราว">&#10074;&#10074;</button>
     </div>
 
     <div id="save-banner" role="status" hidden></div>
     <div id="hint" role="status" aria-live="polite" hidden></div>
+    <div id="ctx-prompt" role="status" aria-live="polite" hidden></div>
     <pre id="debug" hidden></pre>
 
     <div id="touch" hidden>
       <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
+      <button id="btn-capture" class="act-btn small" type="button" aria-label="วางกับดักจับ" hidden>จับ</button>
+      <button id="btn-context" class="act-btn small" type="button" aria-label="ใช้เถาวัลย์/คบเพลิง" hidden>เถา</button>
+      <button id="btn-potion" class="act-btn small" type="button" aria-label="ยาฟื้น"><span id="btn-potion-label">ยา</span></button>
       <button id="btn-skill" class="act-btn small" type="button" aria-label="สกิล"><span id="btn-skill-label">สกิล</span></button>
       <button id="btn-part" class="act-btn small" type="button" aria-label="เปลี่ยนส่วนเป้าหมาย">เป้า</button>
       <button id="btn-dodge" class="act-btn" type="button">หลบ</button>
@@ -48,9 +51,11 @@
         <div id="base-inv" class="inv"></div>
         <div id="base-pin" class="pin"></div>
         <div id="base-bestiary" class="muted"></div>
+        <div id="base-captured" class="inv" aria-label="สัตว์ที่เคยจับ"></div>
         <div class="row">
           <button id="btn-hunt" class="primary" type="button">ออกล่า</button>
           <button id="btn-craft" type="button">ประกอบอาวุธ</button>
+          <button id="btn-bestiary" type="button">สมุดสัตว์</button>
         </div>
         <div class="row small-row">
           <button id="btn-base-settings" type="button">ตั้งค่า</button>
@@ -61,8 +66,9 @@
 
     <section id="screen-prep" class="overlay screen" aria-labelledby="prep-title" hidden>
       <div class="panel wide">
-        <h1 id="prep-title">กิ้งก่าถุงไฟ</h1>
-        <p class="muted">สัตว์สี่ขาหัวกว้าง ถุงใต้คอเรืองแสงส้ม — สังเกตท่าก่อนโจมตี หลบข้างแล้วตีถุงไฟให้แตกจะเลิกพ่นไฟ</p>
+        <h1 id="prep-title">เตรียมล่า</h1>
+        <fieldset class="target"><legend>เลือกภารกิจ</legend><div id="prep-missions"></div></fieldset>
+        <div id="prep-card" class="card"></div>
         <fieldset class="target"><legend>วัสดุเป้าหมาย (เลือกก่อนล่า เปลี่ยนกลางรอบไม่ได้)</legend><div id="prep-targets"></div></fieldset>
         <div id="prep-loadout" class="loadout"></div>
         <p id="prep-reward" class="muted"></p>
@@ -82,6 +88,8 @@
         <div id="craft-inv" class="inv"></div>
         <div id="craft-list" class="cards"></div>
         <div class="slots">
+          <label>อาวุธ
+            <select id="slot-weapon"></select></label>
           <label>โมดูลหลัก (เปลี่ยนสกิล)
             <select id="slot-primary"></select></label>
           <label>โมดูลเสริม (ความสามารถติดตัว)
@@ -89,6 +97,14 @@
         </div>
         <p id="craft-msg" class="msg" role="status" aria-live="polite"></p>
         <div class="row"><button id="btn-craft-back" class="primary" type="button">กลับ</button></div>
+      </div>
+    </section>
+
+    <section id="screen-bestiary" class="overlay screen" aria-labelledby="bestiary-title" hidden>
+      <div class="panel wide">
+        <h1 id="bestiary-title">สมุดสัตว์</h1>
+        <div id="bestiary-list" class="cards"></div>
+        <div class="row"><button id="btn-bestiary-back" class="primary" type="button">กลับ</button></div>
       </div>
     </section>
 

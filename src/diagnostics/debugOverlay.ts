@@ -20,7 +20,7 @@ export class DebugOverlay {
       `pos ${p.pos.x.toFixed(0)},${p.pos.y.toFixed(0)}  face ${((p.facing * 180) / Math.PI).toFixed(0)}°`,
       `stam ${p.stamina.toFixed(0)}  dodge ${p.dodge ? p.dodge.t.toFixed(2) : '-'}  cd ${p.dodgeCooldown.toFixed(2)}  inv ${isInvulnerable(p) ? 'Y' : 'n'}`,
       `atk ${attackPhase(p) ?? '-'}  #${p.attackCounter}  buf ${p.buffer?.kind ?? '-'}`,
-      `mon ${m.phase}${m.move ? ':' + m.move.id : ''} t${m.t.toFixed(2)} hp ${m.hp} sac ${m.partHp.fire_sac} jaw ${m.partHp.jaw} stg ${m.staggerMeter.toFixed(0)}  hunt ${f.hunt.status} ${f.hunt.elapsed.toFixed(1)}s`,
+      `mon ${m.phase}${m.move ? ':' + m.move.id : ''} t${m.t.toFixed(2)} hp ${m.hp} parts ${JSON.stringify(m.partHp)} stg ${m.staggerMeter.toFixed(0)}  hunt ${f.hunt.status} ${f.hunt.elapsed.toFixed(1)}s`,
       `keys [${s.keys.join(' ')}] mouse ${s.mouseHeld ? 'down' : 'up'} touch ${s.touch.moveX.toFixed(2)},${s.touch.moveY.toFixed(2)} atk ${s.touch.attackHeld ? 1 : 0}`,
     ].join('\n');
   }

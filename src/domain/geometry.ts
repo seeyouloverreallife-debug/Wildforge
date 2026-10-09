@@ -18,3 +18,11 @@ export const circlesOverlap = (a: Vec, ar: number, b: Vec, br: number): boolean 
   Math.hypot(a.x - b.x, a.y - b.y) < ar + br;
 
 export const rotate = (v: Vec, a: number): Vec => ({ x: v.x * Math.cos(a) - v.y * Math.sin(a), y: v.x * Math.sin(a) + v.y * Math.cos(a) });
+
+/** Distance from point p to segment a→b. */
+export function distToSegment(p: Vec, a: Vec, b: Vec): number {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const l2 = dx * dx + dy * dy;
+  const t = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
+  return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+}

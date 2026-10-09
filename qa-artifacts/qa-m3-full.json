@@ -1,0 +1,58 @@
+{
+ "out": [
+  {
+   "tag": "crab",
+   "attempt": 1,
+   "st": "SUCCESS",
+   "el": 231.93333333341005,
+   "hp": 100,
+   "broken": [
+    "shell",
+    "poison_sac"
+   ],
+   "log": 0,
+   "tele": [
+    "side_charge",
+    "claw_slam",
+    "venom_puddle"
+   ],
+   "bot": {
+    "dodges": 83,
+    "partPresses": 2,
+    "frames": 12605,
+    "skills": 0,
+    "trapSet": false,
+    "potions": 0,
+    "lastHazDodge": 97921.79999999981
+   },
+   "hurtMoves": []
+  },
+  {
+   "tag": "sail",
+   "attempt": 1,
+   "st": "SUCCESS",
+   "el": 138.33333333333556,
+   "hp": 100,
+   "broken": [
+    "wing",
+    "horn"
+   ],
+   "log": 0,
+   "tele": [
+    "horn_ram",
+    "wind_ring",
+    "glide_pass"
+   ],
+   "bot": {
+    "dodges": 42,
+    "partPresses": 2,
+    "frames": 7867,
+    "skills": 0,
+    "trapSet": false,
+    "potions": 0
+   },
+   "hurtMoves": []
+  }
+ ],
+ "errors": []
+}

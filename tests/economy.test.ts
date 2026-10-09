@@ -7,7 +7,8 @@ import { resolveBuild } from '../src/domain/build';
 
 const withMats = (m: Partial<SaveData['materials']>): SaveData => { const s = newSave(); Object.assign(s.materials, m); return s; };
 const result = (over: Partial<HuntResult> = {}): HuntResult => ({
-  huntId: 'hunt-1', outcome: 'success', failReason: null, elapsed: 120, brokenPartIds: [], movesSeen: ['fire_breath'], ...over,
+  huntId: 'hunt-1', missionId: 'hunt_gecko', monsterId: 'ember_gecko', objective: 'hunt', captured: false,
+  outcome: 'success', failReason: null, elapsed: 120, brokenPartIds: [], movesSeen: ['fire_breath'], ...over,
 });
 const ctx = { missionId: 'hunt_gecko', targetMaterialId: 'heat_bladder' } as const;
 
@@ -35,7 +36,7 @@ describe('crafting', () => {
     expect(s.materials.heat_bladder).toBe(2);
     const t = withMats({ fang: 99 }); t.modules.fang = { tier: 2 };
     expect(craftOrUpgrade(t, 'fang').ok).toBe(false);
-    expect(craftOrUpgrade(withMats({ shell_scale: 99 }), 'shell').ok).toBe(false);
+    expect(craftOrUpgrade(withMats({ shell_scale: 99 }), 'shell').ok).toBe(false); // recipe locked until the crab mission opens
   });
   it('double craft of the same module cannot spend twice (owned module → upgrade rules apply)', () => {
     const s = withMats({ fang: 4 });
@@ -48,7 +49,7 @@ describe('crafting', () => {
   });
   it('loadout: owned only, no duplicates across slots, swapping is free', () => {
     const s = withMats({}); s.modules.fang = { tier: 1 }; s.modules.ember = { tier: 1 };
-    expect(setLoadout(s, 'shell', null).ok).toBe(false);
+    expect(setLoadout(s, 'shell', null).ok).toBe(false); // not owned
     expect(setLoadout(newSave(), 'fang', null).ok).toBe(false); // not owned
     expect(setLoadout(s, 'fang', 'fang').ok).toBe(false);
     const a = setLoadout(s, 'fang', 'ember');
@@ -59,7 +60,7 @@ describe('crafting', () => {
   it('pins one recipe', () => {
     const r = pinRecipe(newSave(), 'ember');
     expect(r.ok && r.save.pinnedRecipeId).toBe('ember');
-    expect(pinRecipe(newSave(), 'horn').ok).toBe(false);
+    expect(pinRecipe(newSave(), 'horn').ok).toBe(false); // locked recipe
   });
 });
 
@@ -123,9 +124,9 @@ describe('save validation', () => {
     ['unknown module', (s: any) => { s.modules.laser = { tier: 1 }; }],
     ['equipped but not owned', (s: any) => { s.loadout.primaryModuleId = 'fang'; }],
     ['same module in both slots', (s: any) => { s.modules.fang = { tier: 1 }; s.loadout.primaryModuleId = 'fang'; s.loadout.secondaryModuleId = 'fang'; }],
-    ['weapon not unlocked/available', (s: any) => { s.loadout.weaponId = 'branch_spear'; }],
+    ['weapon not unlocked', (s: any) => { s.loadout.weaponId = 'branch_spear'; }],
     ['future schema', (s: any) => { s.schemaVersion = 99; }],
-    ['unknown monster in bestiary', (s: any) => { s.bestiary.dragon = { hunts: 1, clears: 0, bestTimeHunt: null, movesSeen: [], partsBroken: [] }; }],
+    ['unknown monster in bestiary', (s: any) => { s.bestiary.dragon = { hunts: 1, clears: 0, captures: 0, bestTimeHunt: null, bestTimeCapture: null, movesSeen: [], partsBroken: [] }; }],
   ])('rejects %s with a reason', (_n, mutate) => {
     const s = JSON.parse(JSON.stringify(newSave()));
     mutate(s);
@@ -154,6 +155,6 @@ describe('build resolution', () => {
     expect(c.skill).toMatchObject({ id: 'fang', cost: 20 });
     expect(c.skill.cooldown).toBeCloseTo(6 * 0.92);
     expect(c.skill.hit?.damage).toBe(15);
-    expect(c.skill.bleed?.dps).toBe(3);
+    expect(c.skill.dot?.dps).toBe(3);
   });
 });

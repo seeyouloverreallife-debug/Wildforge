@@ -9,11 +9,14 @@ const KEY_MOVE: Record<string, Vec> = {
 const KEY_ATTACK = new Set(['KeyJ']);
 const KEY_DODGE = new Set(['Space', 'KeyK']);
 const KEY_SKILL = new Set(['KeyL']);
+const KEY_POTION = new Set(['KeyQ']);
+const KEY_CAPTURE = new Set(['KeyC']);
+const KEY_CONTEXT = new Set(['KeyE']);
 const GAME_KEYS = new Set([...Object.keys(KEY_MOVE), ...KEY_ATTACK, ...KEY_DODGE, ...KEY_SKILL, 'Tab', 'KeyQ', 'KeyR', 'KeyC', 'KeyE']);
 
 export interface RawInput {
   moveX: number; moveY: number;
-  attackHeld: boolean; attackPressed: boolean; dodgePressed: boolean; partPressed: boolean; skillPressed: boolean;
+  attackHeld: boolean; attackPressed: boolean; dodgePressed: boolean; partPressed: boolean; skillPressed: boolean; potionPressed: boolean; capturePressed: boolean; contextPressed: boolean;
   /** Mouse position relative to the game canvas (CSS px), null until the mouse has moved over it. */
   mouse: Vec | null;
 }
@@ -29,6 +32,9 @@ export class InputController {
   private dodgeEdge = false;
   private partEdge = false;
   private skillEdge = false;
+  private potionEdge = false;
+  private captureEdge = false;
+  private contextEdge = false;
   private readonly cleanup: Array<() => void> = [];
 
   constructor(private readonly target: HTMLElement) {
@@ -76,6 +82,9 @@ export class InputController {
     if (KEY_ATTACK.has(e.code)) this.attackEdge = true;
     if (KEY_DODGE.has(e.code)) this.dodgeEdge = true;
     if (KEY_SKILL.has(e.code)) this.skillEdge = true;
+    if (KEY_POTION.has(e.code)) this.potionEdge = true;
+    if (KEY_CAPTURE.has(e.code)) this.captureEdge = true;
+    if (KEY_CONTEXT.has(e.code)) this.contextEdge = true;
     if (e.code === 'Tab' || e.code === 'KeyR') this.partEdge = true;
   }
 
@@ -83,6 +92,9 @@ export class InputController {
 
   pressDodge(): void { if (this.enabled) this.dodgeEdge = true; }
   pressAttack(): void { if (this.enabled) this.attackEdge = true; }
+  pressPotion(): void { if (this.enabled) this.potionEdge = true; }
+  pressCapture(): void { if (this.enabled) this.captureEdge = true; }
+  pressContext(): void { if (this.enabled) this.contextEdge = true; }
   pressSkill(): void { if (this.enabled) this.skillEdge = true; }
   pressPart(): void { if (this.enabled) this.partEdge = true; }
 
@@ -90,7 +102,7 @@ export class InputController {
   reset(): void {
     this.keys.clear();
     this.mouseHeld = false;
-    this.attackEdge = this.dodgeEdge = this.partEdge = this.skillEdge = false;
+    this.attackEdge = this.dodgeEdge = this.partEdge = this.skillEdge = this.potionEdge = this.captureEdge = this.contextEdge = false;
     this.touch.moveX = this.touch.moveY = 0;
     this.touch.attackHeld = false;
   }
@@ -102,10 +114,10 @@ export class InputController {
     const out: RawInput = {
       moveX: mx, moveY: my,
       attackHeld: this.mouseHeld || this.touch.attackHeld || [...this.keys].some((k) => KEY_ATTACK.has(k)),
-      attackPressed: this.attackEdge, dodgePressed: this.dodgeEdge, partPressed: this.partEdge, skillPressed: this.skillEdge,
+      attackPressed: this.attackEdge, dodgePressed: this.dodgeEdge, partPressed: this.partEdge, skillPressed: this.skillEdge, potionPressed: this.potionEdge, capturePressed: this.captureEdge, contextPressed: this.contextEdge,
       mouse: this.mouse,
     };
-    this.attackEdge = this.dodgeEdge = this.partEdge = this.skillEdge = false;
+    this.attackEdge = this.dodgeEdge = this.partEdge = this.skillEdge = this.potionEdge = this.captureEdge = this.contextEdge = false;
     return out;
   }
 

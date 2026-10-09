@@ -51,6 +51,9 @@ export class TouchControls {
 
     this.bindButton(atk, () => { input.touch.attackHeld = true; input.pressAttack(); }, () => { input.touch.attackHeld = false; });
     this.bindButton(dodge, () => input.pressDodge(), () => {});
+    this.bindButton(root.querySelector<HTMLElement>('#btn-potion')!, () => input.pressPotion(), () => {});
+    this.bindButton(root.querySelector<HTMLElement>('#btn-capture')!, () => input.pressCapture(), () => {});
+    this.bindButton(root.querySelector<HTMLElement>('#btn-context')!, () => input.pressContext(), () => {});
     this.bindButton(root.querySelector<HTMLElement>('#btn-skill')!, () => input.pressSkill(), () => {});
     this.bindButton(root.querySelector<HTMLElement>('#btn-part')!, () => input.pressPart(), () => {});
 

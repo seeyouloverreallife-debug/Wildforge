@@ -1,8 +1,7 @@
 import Phaser from 'phaser';
-import { EMBER_GECKO } from './data/monsters';
 import { PLAYER } from './data/tuning';
 import { DebugOverlay } from './diagnostics/debugOverlay';
-import type { HuntEvent } from './domain/hunt';
+import { captureReady, contextAction, type HuntEvent } from './domain/hunt';
 import { monsterShapeHits, partWorldPos } from './domain/monster';
 import { InputController } from './engine/input/InputController';
 import { PauseController } from './engine/PauseController';
@@ -81,12 +80,26 @@ const bossFill = $('boss-fill'), hintEl = $('hint');
 const skillHud = $('skill-hud'), skillName = $('skill-name'), skillCost = $('skill-cost'), skillCd = $('skill-cd');
 const btnSkill = $('btn-skill'), btnSkillLabel = $('btn-skill-label');
 const chips = new Map<string, HTMLElement>();
-document.querySelectorAll<HTMLElement>('#chips .chip').forEach((c) => chips.set(c.dataset.part!, c));
-const hintShown = new Set<string>();
+let chipsFor = '';
+const potionHud = $('potion-hud'), captureHud = $('capture-hud'), ctxPrompt = $('ctx-prompt');
+const btnPotion = $('btn-potion'), btnPotionLabel = $('btn-potion-label'), btnCapture = $('btn-capture'), btnContext = $('btn-context');
+const setText = (el: HTMLElement, t: string) => { if (el.textContent !== t) el.textContent = t; };
+const buildChips = (f: FrameInfo) => {
+  const def = f.hunt.monster.def;
+  chips.clear();
+  const wrap = $('chips'); wrap.replaceChildren();
+  for (const [id, name] of [['body', 'ตัว'], ...def.parts.map((p) => [p.id, p.nameTh] as const)] as const) {
+    const c = document.createElement('span'); c.className = 'chip'; c.dataset.part = id; c.textContent = name; wrap.append(c); chips.set(id, c);
+  }
+  $('boss-name').textContent = def.nameTh;
+  chipsFor = f.hunt.huntId;
+};
+const hintShown = new Set<string>(); // hint once per move per page session
 let hintTimer: number | undefined;
 let lastSecond = -1;
 const onFrame = (f: FrameInfo) => {
   const { player, monster, elapsed, selected, build } = f.hunt;
+  if (chipsFor !== f.hunt.huntId) buildChips(f);
   hpFill.style.width = `${(player.hp / PLAYER.maxHp) * 100}%`;
   hpText.textContent = String(Math.ceil(player.hp));
   stFill.style.width = `${(player.stamina / PLAYER.maxStamina) * 100}%`;
@@ -103,8 +116,29 @@ const onFrame = (f: FrameInfo) => {
   skillName.textContent = `[L] ${sk.nameTh}`; skillCost.textContent = `แรง ${cost}`;
   skillCd.textContent = cd > 0 ? `${cd.toFixed(1)}s` : 'ใช้ได้';
   skillHud.classList.toggle('cooling', cd > 0); skillHud.classList.toggle('ready', cd <= 0);
-  btnSkillLabel.textContent = cd > 0 ? cd.toFixed(1) : sk.nameTh;
+  btnSkillLabel.textContent = cd > 0 ? cd.toFixed(1) : 'สกิล';
   btnSkill.classList.toggle('cooling', cd > 0 || player.stamina < cost);
+  const h = f.hunt;
+  setText(potionHud, `ยา ×${h.potions} [Q]`);
+  setText(btnPotionLabel, `ยา ${h.potions}`);
+  btnPotion.classList.toggle('cooling', h.potions <= 0 || player.hp >= PLAYER.maxHp);
+  const isCap = h.objective === 'capture';
+  captureHud.hidden = !isCap; btnCapture.hidden = !isCap;
+  if (isCap) {
+    const ready = captureReady(h);
+    setText(captureHud, h.trap ? 'กับดักวางแล้ว — ล่อสัตว์เข้าวง' : !h.trapCharge ? 'ใช้กับดักไปแล้ว'
+      : ready ? '◆ พร้อมจับ! [C] วางกับดัก' : '◆ จับ [C]: ลดพลังชีวิตให้ต่ำกว่า 25% ก่อน');
+    captureHud.classList.toggle('ready', ready);
+    btnCapture.classList.toggle('cooling', !h.trapCharge || !!h.trap);
+  }
+  const ca = contextAction(h);
+  btnContext.hidden = !ca; ctxPrompt.hidden = !ca;
+  if (ca) {
+    const label = ca.kind === 'root' ? 'ดึงเถา' : 'เผา';
+    setText(btnContext, label);
+    btnContext.classList.toggle('cooling', !ca.ok);
+    setText(ctxPrompt, ca.ok ? (ca.kind === 'root' ? '[E] ดึงเถาวัลย์ รัดสัตว์ 1.5 วินาที (ใช้ได้ครั้งเดียว)' : '[E] เผาเถาวัลย์ด้วยคบเพลิง (เปิดทาง แต่ใช้รัดสัตว์ไม่ได้อีก)') : `เถาวัลย์: ${ca.reason}`);
+  }
   debug.update(f);
 };
 
@@ -118,12 +152,18 @@ const onEvent = (e: HuntEvent) => {
   if (debugOn) { debugLog.push(e); if (debugLog.length > 2000) debugLog.shift(); }
   if (e.type === 'telegraph' && !hintShown.has(e.move)) {
     hintShown.add(e.move);
-    const mv = EMBER_GECKO.moves.find((m) => m.id === e.move);
+    const def = scene.hunt.monster.def;
+    const mv = def.moves.find((m) => m.id === e.move);
     if (mv) showHint(`${mv.nameTh}: ${mv.hintTh}`);
   } else if (e.type === 'part_break') {
-    const p = EMBER_GECKO.parts.find((x) => x.id === e.part)!;
-    showHint(`${p.nameTh}แตก! ${EMBER_GECKO.breakEffects[e.part].descTh}`);
-  }
+    const def = scene.hunt.monster.def;
+    const p = def.parts.find((x) => x.id === e.part)!;
+    showHint(`${p.nameTh}แตก! ${def.breakEffects[e.part]?.descTh ?? ''}`);
+  } else if (e.type === 'captured') showHint('จับได้แล้ว!');
+  else if (e.type === 'vine_root') showHint('เถาวัลย์รัดสัตว์ไว้!');
+  else if (e.type === 'torch_burn') showHint('เผาเถาวัลย์แล้ว — เปิดทางเดิน');
+  else if (e.type === 'guard_hit') showHint('การ์ดรับไว้ — รอสวนกลับ');
+  else if (e.type === 'monster_reset') showHint('สัตว์ติด — ย้ายไปจุดปลอดภัย');
 };
 
 const game = new Phaser.Game({

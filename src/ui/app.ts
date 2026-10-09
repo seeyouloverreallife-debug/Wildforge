@@ -1,9 +1,10 @@
 import {
-  AVAILABLE_MODULES, MATERIAL_NAMES_TH, MISSIONS, MODULES, type MaterialId, type ModuleId,
+  MATERIAL_NAMES_TH, MISSIONS, MODULES, MONSTER_IDS, UNLOCK_LABELS_TH, WEAPON_IDS, WEAPON_NAMES_TH, type MaterialId, type MissionId, type ModuleId, type WeaponId,
 } from '../data/content';
-import { EMBER_GECKO } from '../data/monsters';
+import { MONSTERS } from '../data/monsters';
 import { resolveBuild } from '../domain/build';
-import { craftInfo, craftOrUpgrade, pinRecipe, setLoadout } from '../domain/crafting';
+import { craftInfo, craftOrUpgrade, pinRecipe, setLoadout, setWeapon } from '../domain/crafting';
+import { recomputeUnlocks, unlockedRecipes } from '../domain/unlocks';
 import type { HuntResult } from '../domain/hunt';
 import { settleHunt, type HuntContext, type RewardSummary } from '../domain/rewards';
 import { cloneSave } from '../domain/save';
@@ -12,9 +13,11 @@ import type { PauseController } from '../engine/PauseController';
 import type { CommitResult, SaveManager } from '../persistence/saveManager';
 import { $id, el } from './dom';
 
-type Screen = 'base' | 'prep' | 'craft' | 'hunt' | 'results';
+type Screen = 'base' | 'prep' | 'craft' | 'bestiary' | 'hunt' | 'results';
+const SCREENS = ['base', 'prep', 'craft', 'bestiary', 'results'] as const;
 
 const modName = (id: ModuleId) => MODULES[id]?.nameTh ?? id;
+const monsterOf = (m: MissionId) => MONSTERS[MISSIONS[m].monsterId];
 const matName = (id: MaterialId) => MATERIAL_NAMES_TH[id];
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -33,6 +36,8 @@ export class App {
     on('btn-prep-craft', () => this.show('craft'));
     on('btn-prep-back', () => this.show('base'));
     on('btn-craft-back', () => this.show('base'));
+    on('btn-bestiary', () => this.show('bestiary'));
+    on('btn-bestiary-back', () => this.show('base'));
     on('btn-base-settings', () => this.pause.setSettingsOpen(true));
     on('btn-save-tools', () => this.saveTools());
     on('btn-start', () => this.startHunt());
@@ -41,6 +46,7 @@ export class App {
     on('btn-save-retry', () => this.settle());
     on('btn-restart', () => this.leaveHunt('restart'));
     on('btn-home', () => this.leaveHunt('home'));
+    $id<HTMLSelectElement>('slot-weapon').addEventListener('change', () => this.onWeapon());
     $id<HTMLSelectElement>('slot-primary').addEventListener('change', () => this.onSlots());
     $id<HTMLSelectElement>('slot-secondary').addEventListener('change', () => this.onSlots());
     window.addEventListener('storage', (e) => { if (e.key === 'wildforge.save.primary') this.onForeignWrite(); });
@@ -63,31 +69,48 @@ export class App {
       this.save.commit(next);
       this.notice('รอบล่าที่แล้วถูกปิดกลางคัน — ไม่ได้รางวัล แต่วัสดุและโมดูลเดิมยังอยู่ครบ');
     }
+    // M2 → M3: derive unlocks from the first-clear records already in the save (nothing is paid again)
+    const mig = recomputeUnlocks(this.save.state);
+    if (mig.added.length) {
+      const c = this.save.commit(mig.save);
+      if (c.ok) this.notice(`ปลดล็อกจากความคืบหน้าเดิม: ${mig.added.map((id) => UNLOCK_LABELS_TH[id] ?? id).join(', ')}`);
+    }
     this.show('base');
   }
 
   // ------------------------------------------------------------ screens
   show(s: Screen): void {
     this.screen = s;
-    for (const k of ['base', 'prep', 'craft', 'results'] as const) $id(`screen-${k}`).hidden = k !== s;
+    for (const k of SCREENS) $id(`screen-${k}`).hidden = k !== s;
     this.pause.setMenu(s !== 'hunt');
     this.refreshBanner();
     if (s === 'base') this.renderBase();
     if (s === 'prep') this.renderPrep();
     if (s === 'craft') this.renderCraft();
-    const focus = { base: 'btn-hunt', prep: 'btn-start', craft: 'btn-craft-back', results: 'btn-retry', hunt: '' }[s];
+    if (s === 'bestiary') this.renderBestiary();
+    const focus = { base: 'btn-hunt', prep: 'btn-start', craft: 'btn-craft-back', bestiary: 'btn-bestiary-back', results: 'btn-retry', hunt: '' }[s];
     if (focus) $id(focus).focus();
+  }
+
+  /** materials of the monsters whose hunt is unlocked */
+  private visibleMaterials(): MaterialId[] {
+    const out: MaterialId[] = [];
+    for (const id of MONSTER_IDS) {
+      const unlocked = (['hunt_gecko', 'hunt_crab', 'hunt_sail'] as const).some((m) => MISSIONS[m].monsterId === id && this.save.state.unlockedMissionIds.includes(m));
+      if (unlocked) out.push(...MONSTERS[id].materials);
+    }
+    return out;
   }
 
   private inventoryTags(): HTMLElement[] {
     const m = this.save.state.materials;
-    return (['heat_bladder', 'fang'] as const).map((id) => el('span', { class: 'tag' }, `${matName(id)} × ${m[id]}`));
+    return this.visibleMaterials().map((id) => el('span', { class: 'tag' }, `${matName(id)} × ${m[id]}`));
   }
 
   private renderBase(): void {
     const s = this.save.state;
     $id('base-inv').replaceChildren(...this.inventoryTags(), el('span', { class: 'tag' }, `Research ${s.research}`));
-    const owned = AVAILABLE_MODULES.filter((m) => s.modules[m]).map((m) => `${modName(m)} ระดับ ${s.modules[m]!.tier}`);
+    const owned = unlockedRecipes(s).filter((m) => s.modules[m]).map((m) => `${modName(m)} ระดับ ${s.modules[m]!.tier}`);
     $id('base-status').textContent = owned.length ? `โมดูลที่มี: ${owned.join(' • ')}` : 'ยังไม่มีโมดูล — ล่าเพื่อเก็บวัสดุ แล้วไป "ประกอบอาวุธ"';
     const pinEl = $id('base-pin');
     if (s.pinnedRecipeId) {
@@ -95,41 +118,69 @@ export class App {
       pinEl.textContent = info.action === 'maxed' ? `สูตรที่ปักหมุด: ${modName(s.pinnedRecipeId)} — สูงสุดแล้ว`
         : `สูตรที่ปักหมุด: ${modName(s.pinnedRecipeId)} (${info.action === 'craft' ? 'สร้าง' : 'อัปเกรด'}) มี ${info.have}/${info.cost}`;
     } else pinEl.textContent = 'ยังไม่ได้ปักหมุดสูตร (ปักได้ที่หน้าประกอบอาวุธ)';
-    const b = s.bestiary.ember_gecko;
-    $id('base-bestiary').textContent = b ? `กิ้งก่าถุงไฟ: ล่า ${b.hunts} ครั้ง ชนะ ${b.clears}${b.bestTimeHunt !== null ? ` • เวลาดีที่สุด ${fmtTime(b.bestTimeHunt)}` : ''}` : 'กิ้งก่าถุงไฟ: ยังไม่เคยล่า';
+    const seen = MONSTER_IDS.filter((id) => (s.bestiary[id]?.hunts ?? 0) > 0).length;
+    const clears = MONSTER_IDS.reduce((n, id) => n + (s.bestiary[id]?.clears ?? 0), 0);
+    $id('base-bestiary').textContent = `สมุดสัตว์: เคยเจอ ${seen}/3 ชนิด • ล่าสำเร็จรวม ${clears} ครั้ง`;
+    $id('base-captured').replaceChildren(...MONSTER_IDS.filter((id) => (s.bestiary[id]?.captures ?? 0) > 0)
+      .map((id) => el('span', { class: 'tag cap', title: 'จับได้แล้ว' }, `◆ ${MONSTERS[id].nameTh} (จับแล้ว ${s.bestiary[id]!.captures})`)));
   }
+
+  private missionTargets(m: MissionId): readonly MaterialId[] { return monsterOf(m).materials; }
 
   private renderPrep(): void {
     const s = this.save.state;
-    const mission = MISSIONS.hunt_gecko;
-    const pinMat = s.pinnedRecipeId ? MODULES[s.pinnedRecipeId]?.materialId : undefined;
-    // suggest the pinned recipe's material, but any choice stays valid
-    if (!mission.allowedTargetMaterials.includes(this.ctx.targetMaterialId) || (pinMat && this.ctxFresh)) {
-      this.ctx = { missionId: 'hunt_gecko', targetMaterialId: pinMat && mission.allowedTargetMaterials.includes(pinMat) ? pinMat : 'heat_bladder' };
+    if (!s.unlockedMissionIds.includes(this.ctx.missionId)) this.ctx.missionId = 'hunt_gecko';
+    const mission = MISSIONS[this.ctx.missionId];
+    const def = monsterOf(this.ctx.missionId);
+    const pinMat = s.pinnedRecipeId ? MODULES[s.pinnedRecipeId].materialId : undefined;
+    const allowed = this.missionTargets(this.ctx.missionId);
+    // suggest the pinned recipe's material when this monster drops it, but any choice stays valid
+    if (!allowed.includes(this.ctx.targetMaterialId) || (pinMat && allowed.includes(pinMat) && this.ctxFresh)) {
+      this.ctx.targetMaterialId = pinMat && allowed.includes(pinMat) ? pinMat : allowed[0]!;
     }
     this.ctxFresh = false;
+
+    $id('prep-missions').replaceChildren(...s.unlockedMissionIds.map((id) => {
+      const input = el('input', { type: 'radio', name: 'mission', value: id, onchange: () => { this.ctx.missionId = id; this.ctxFresh = true; this.renderPrep(); } });
+      input.checked = this.ctx.missionId === id;
+      return el('label', { class: 'mission' }, input, `${MISSIONS[id].objective === 'capture' ? '◆ ' : '⚔ '}${MISSIONS[id].nameTh}`);
+    }));
+    const cleared = (s.bestiary[def.id]?.clears ?? 0) > 0;
+    $id('prep-title').textContent = mission.nameTh;
+    $id('prep-card').replaceChildren(
+      el('h2', {}, def.nameTh),
+      el('p', {}, def.introTh),
+      el('p', {}, mission.objective === 'capture'
+        ? 'เป้าหมาย: จับเป็น — ลดพลังชีวิตให้ต่ำกว่า 25% แล้ววางกับดักตอนมันพัก/ชะงัก (ล่าให้ตายถือว่าล้มเหลว)'
+        : 'เป้าหมาย: ล่าให้พลังชีวิตหมด'),
+      el('p', { class: cleared ? '' : 'locked' }, cleared ? `คำใบ้: ${def.tipTh}` : 'คำใบ้เตรียมตัว: ล่าให้สำเร็จครั้งแรกเพื่อเปิด'),
+    );
     const wrap = $id('prep-targets');
-    wrap.replaceChildren(...mission.allowedTargetMaterials.map((id) => {
+    wrap.replaceChildren(...allowed.map((id) => {
       const input = el('input', { type: 'radio', name: 'target', value: id, onchange: () => { this.ctx.targetMaterialId = id; this.renderPrepReward(); } });
       input.checked = this.ctx.targetMaterialId === id;
       return el('label', {}, input, `${matName(id)}${pinMat === id ? ' (ตรงกับสูตรที่ปักหมุด)' : ''} — มีอยู่ ${s.materials[id]}`);
     }));
     const build = resolveBuild(s);
     const pri = build.primary ? `${modName(build.primary.id)} ระดับ ${build.primary.tier}` : 'ไม่มี (ใช้ โฟกัสสไตรค์)';
-    const sec = build.secondary ? `${modName(build.secondary.id)} ระดับ ${build.secondary.tier}: ${MODULES[build.secondary.id]!.passive.descTh}` : 'ไม่มี';
+    const sec = build.secondary ? `${modName(build.secondary.id)} ระดับ ${build.secondary.tier}: ${MODULES[build.secondary.id].passive.descTh}` : 'ไม่มี';
     $id('prep-loadout').replaceChildren(
-      el('div', {}, 'อาวุธ: ดาบเขี้ยว'),
+      el('div', {}, `อาวุธ: ${WEAPON_NAMES_TH[build.weaponId]}`),
       el('div', {}, `โมดูลหลัก: ${pri}`),
-      el('div', {}, `สกิล: ${build.skill.nameTh} — ใช้แรง ${Math.max(1, Math.round(build.skill.cost))}, คูลดาวน์ ${build.skill.cooldown.toFixed(1)} วินาที`),
+      el('div', {}, `สกิล: ${build.skill.nameTh} — ใช้แรง ${build.skill.cost}, คูลดาวน์ ${build.skill.cooldown.toFixed(1)} วินาที`),
       el('div', {}, `โมดูลเสริม: ${sec}`),
+      el('div', {}, 'เครื่องมือ: ยาฟื้น ×2 • คบเพลิง/เถาวัลย์ที่จุดเถาวัลย์' + (mission.objective === 'capture' ? ' • กับดักจับ ×1' : '')),
     );
     this.renderPrepReward();
-    const err = $id('prep-error'); err.hidden = true;
+    $id('prep-error').hidden = true;
   }
   private ctxFresh = true;
 
   private renderPrepReward(): void {
-    $id('prep-reward').textContent = `รางวัลแน่นอนเมื่อล่าสำเร็จ: ${matName(this.ctx.targetMaterialId)} ×2, +1 ต่อส่วนที่ทำลาย (ถุงไฟ→ถุงความร้อน, ขากรรไกร→เขี้ยว), Research 1`;
+    const cap = MISSIONS[this.ctx.missionId].objective === 'capture';
+    const def = monsterOf(this.ctx.missionId);
+    const parts = def.parts.map((p) => `${p.nameTh}→${matName(p.bonusMaterialId)}`).join(', ');
+    $id('prep-reward').textContent = `รางวัลแน่นอนเมื่อสำเร็จ: ${matName(this.ctx.targetMaterialId)} ×2, +1 ต่อส่วนที่ทำลาย (${parts}), Research ${cap ? 2 : 1}`;
   }
 
   private msg(text: string, ok = true): void {
@@ -139,8 +190,8 @@ export class App {
   private renderCraft(): void {
     const s = this.save.state;
     $id('craft-inv').replaceChildren(...this.inventoryTags());
-    $id('craft-list').replaceChildren(...AVAILABLE_MODULES.map((id) => {
-      const def = MODULES[id]!;
+    $id('craft-list').replaceChildren(...unlockedRecipes(s).map((id) => {
+      const def = MODULES[id];
       const info = craftInfo(s, id);
       const owned = s.modules[id];
       const label = info.action === 'maxed' ? 'ระดับสูงสุดแล้ว' : `${info.action === 'craft' ? 'สร้าง' : 'อัปเกรด→II'} (ใช้ ${info.cost})`;
@@ -156,12 +207,42 @@ export class App {
         need ? el('p', {}, need) : null,
         el('div', { class: 'row' }, btn, pin));
     }));
+    const owned = (m: ModuleId) => !!s.modules[m];
     const opts = (sel: HTMLSelectElement, cur: ModuleId | null) => {
-      sel.replaceChildren(el('option', { value: '' }, 'ว่าง'), ...AVAILABLE_MODULES.filter((m) => s.modules[m]).map((m) => el('option', { value: m }, `${modName(m)} ระดับ ${s.modules[m]!.tier}`)));
+      sel.replaceChildren(el('option', { value: '' }, 'ว่าง'), ...unlockedRecipes(s).filter(owned).map((m) => el('option', { value: m }, `${modName(m)} ระดับ ${s.modules[m]!.tier}`)));
       sel.value = cur ?? '';
     };
     opts($id<HTMLSelectElement>('slot-primary'), s.loadout.primaryModuleId);
     opts($id<HTMLSelectElement>('slot-secondary'), s.loadout.secondaryModuleId);
+    const w = $id<HTMLSelectElement>('slot-weapon');
+    w.replaceChildren(...WEAPON_IDS.filter((id) => s.unlockedWeaponIds.includes(id)).map((id) => el('option', { value: id }, WEAPON_NAMES_TH[id])));
+    w.value = s.loadout.weaponId;
+  }
+
+  private renderBestiary(): void {
+    const s = this.save.state;
+    $id('bestiary-list').replaceChildren(...MONSTER_IDS.map((id) => {
+      const def = MONSTERS[id];
+      const e = s.bestiary[id];
+      const known = !!e || s.unlockedMissionIds.some((m) => MISSIONS[m].monsterId === id);
+      if (!known) return el('div', { class: 'card' }, el('h2', {}, '??? — ยังไม่พบ'), el('p', { class: 'locked' }, 'ล่าตัวก่อนหน้าให้สำเร็จเพื่อพบสัตว์ชนิดนี้'));
+      const cleared = (e?.clears ?? 0) > 0;
+      const moves = def.moves.map((mv) => (e?.movesSeen.includes(mv.id) ? `${mv.nameTh}: ${mv.hintTh}` : '??? ท่าที่ยังไม่เคยเห็น'));
+      const parts = def.parts.map((p) => (e?.partsBroken.includes(p.id) ? `${p.nameTh}: ${def.breakEffects[p.id]?.descTh ?? ''}` : `${p.nameTh}: ยังไม่เคยทำลาย`));
+      const t = (v: number | null | undefined) => (v === null || v === undefined ? '—' : fmtTime(v));
+      return el('div', { class: 'card' },
+        el('h2', {}, `${def.nameTh}${(e?.captures ?? 0) > 0 ? ' ◆ จับได้แล้ว' : ''}`),
+        el('p', {}, def.introTh),
+        el('p', {}, `ล่า ${e?.hunts ?? 0} ครั้ง • ชนะ ${e?.clears ?? 0} • จับได้ ${e?.captures ?? 0} • เวลาดีที่สุด ล่า ${t(e?.bestTimeHunt)} / จับ ${t(e?.bestTimeCapture)}`),
+        el('p', { class: cleared ? '' : 'locked' }, cleared ? `วัสดุ: ${def.materials.map(matName).join(', ')} • คำใบ้: ${def.tipTh}` : 'วัสดุและคำใบ้: ชนะครั้งแรกเพื่อเปิด'),
+        el('p', {}, 'ท่า:'), ...moves.map((x) => el('p', {}, `• ${x}`)),
+        el('p', {}, 'อวัยวะ:'), ...parts.map((x) => el('p', {}, `• ${x}`)));
+    }));
+  }
+
+  private onWeapon(): void {
+    const v = $id<HTMLSelectElement>('slot-weapon').value as WeaponId;
+    if (!this.tx(setWeapon(this.save.state, v), `เปลี่ยนอาวุธเป็น ${WEAPON_NAMES_TH[v]} แล้ว`)) this.renderCraft();
   }
 
   // ------------------------------------------------------------ transactions
@@ -199,7 +280,7 @@ export class App {
     if (this.busy) return;
     this.busy = true;
     const build = resolveBuild(this.save.state);
-    const hunt = this.scene.newHunt(build);
+    const hunt = this.scene.newHunt(build, { missionId: this.ctx.missionId });
     const next = cloneSave(this.save.state);
     next.pendingHunt = { huntId: hunt.huntId, missionId: this.ctx.missionId, targetMaterialId: this.ctx.targetMaterialId, startedAt: new Date().toISOString() };
     const c = this.save.commit(next); // persist BEFORE entering the hunt (§6)
@@ -212,7 +293,7 @@ export class App {
     }
     this.summary = null; this.lastResult = null;
     this.screen = 'hunt';
-    for (const k of ['base', 'prep', 'craft', 'results'] as const) $id(`screen-${k}`).hidden = true;
+    for (const k of SCREENS) $id(`screen-${k}`).hidden = true;
     this.pause.resume();
     this.pause.setMenu(false);
     this.refreshBanner();
@@ -257,21 +338,26 @@ export class App {
 
   private renderResults(r: HuntResult, c: CommitResult): void {
     const win = r.outcome === 'success';
-    $id('results-title').textContent = win ? 'ล่าสำเร็จ!' : 'ล้มเหลว';
-    $id('results-reason').textContent = win ? '' : r.failReason === 'timeout' ? 'หมดเวลา 10 นาที' : 'ผู้เล่นล้ม';
+    const mission = MISSIONS[r.missionId];
+    const def = MONSTERS[r.monsterId];
+    $id('results-title').textContent = win ? (r.captured ? 'จับได้สำเร็จ!' : 'ล่าสำเร็จ!') : 'ล้มเหลว';
+    $id('results-reason').textContent = win ? '' : r.failReason === 'timeout' ? 'หมดเวลา 10 นาที'
+      : r.failReason === 'killed_capture' ? 'เป้าหมายต้องจับเป็น — สัตว์ถูกล่าจนตาย' : 'ผู้เล่นล้ม';
     const list = $id('results-list'); list.replaceChildren();
     const row = (t: string) => list.append(el('li', {}, t));
     const sum = this.summary;
-    row(`ผล: ${win ? 'เสร็จแล้ว — ล่ากิ้งก่าถุงไฟ' : 'ยังไม่ผ่าน — ล่ากิ้งก่าถุงไฟ'}`);
+    row(`ผล: ${win ? 'เสร็จแล้ว' : 'ยังไม่ผ่าน'} — ${mission.nameTh}`);
     row(`เวลา: ${fmtTime(r.elapsed)}`);
     if (win && sum?.baseMaterial) {
       row(`วัสดุหลัก: ${matName(sum.baseMaterial.id)} ×${sum.baseMaterial.count}`);
-      for (const b of sum.partBonuses) row(`โบนัสส่วนที่ทำลาย: ${EMBER_GECKO.parts.find((p) => p.id === b.partId)!.nameTh} → ${matName(b.materialId)} ×${b.count}`);
+      for (const b of sum.partBonuses) row(`โบนัสส่วนที่ทำลาย: ${def.parts.find((p) => p.id === b.partId)!.nameTh} → ${matName(b.materialId)} ×${b.count}`);
       row(`Research +${sum.research}`);
+      if (sum.firstCapture) row(`จับ${def.nameTh}ครั้งแรก — ไอคอนสัตว์ถูกเพิ่มที่ฐาน`);
+      for (const u of sum.firstClearUnlocks) row(`ปลดล็อก: ${UNLOCK_LABELS_TH[u] ?? u}`);
     } else if (!win) row('ไม่ได้รับวัสดุหรือ Research รอบนี้ (ของเดิมไม่หาย)');
-    const parts = r.brokenPartIds.map((id) => EMBER_GECKO.parts.find((p) => p.id === id)!.nameTh);
+    const parts = r.brokenPartIds.map((id) => def.parts.find((p) => p.id === id)!.nameTh);
     row(`ส่วนที่ทำลาย: ${parts.length ? parts.join(', ') : 'ไม่มี'}`);
-    row(`ท่าที่เห็น: ${r.movesSeen.map((id) => EMBER_GECKO.moves.find((m) => m.id === id)!.nameTh).join(', ') || 'ยังไม่เห็น'}`);
+    row(`ท่าที่เห็น: ${r.movesSeen.map((id) => def.moves.find((m) => m.id === id)?.nameTh ?? id).join(', ') || 'ยังไม่เห็น'}`);
     const pin = this.save.state.pinnedRecipeId;
     if (pin && c.ok) { const i = craftInfo(this.save.state, pin); if (i.action !== 'maxed') row(`สูตรที่ปักหมุด ${modName(pin)}: มี ${i.have}/${i.cost}${i.enough ? ' — พร้อมสร้าง!' : ''}`); }
     const msg = $id('results-save');

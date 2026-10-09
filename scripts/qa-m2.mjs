@@ -142,7 +142,7 @@ try {
   await page.evaluate(() => { const h = window.__wildforge.hunt; h.monster.phase = 'stagger'; h.monster.t = 0; h.monster.staggerDur = 1e9; h.monster.pos = { x: 800, y: 330 }; });
   await page.evaluate(() => { const h = window.__wildforge.hunt; h.player.pos = { x: 800, y: 420 }; });
   await page.keyboard.press('KeyL'); await sleep(450);
-  const f1 = await page.evaluate(() => { const h = window.__wildforge.hunt; return { bleed: !!h.bleed, cd: h.player.skillCooldown, hp: h.monster.hp, hud: document.getElementById('skill-name').textContent }; });
+  const f1 = await page.evaluate(() => { const h = window.__wildforge.hunt; return { bleed: !!h.dot, cd: h.player.skillCooldown, hp: h.monster.hp, hud: document.getElementById('skill-name').textContent }; });
   rec('Q11-fang-skill-bleeds-and-passive-cooldown-0.94', f1.bleed && Math.abs(f1.cd - 5.64) < 0.4, JSON.stringify(f1));
   await page.screenshot({ path: 'qa-artifacts/m2-fang-bleed.png' });
   await page.click('#btn-pause'); await page.click('#btn-home');
