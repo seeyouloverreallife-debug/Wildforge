@@ -507,6 +507,14 @@ main { padding-top: 22px; }
         o = horizon(ty) + '<rect class="f-near" x="0" y="100" width="400" height="10"/>' + fig(100, 104, 1.5, "f-dim") + fig(300, 104, 1.5, "f-dim") +
           '<rect class="f-near" x="150" y="14" width="124" height="46" rx="6"/><path class="f-near" d="M170 60 l-8 12 l22 -12z"/><path class="s-dim" d="M164 28 h96 M164 38 h80 M164 48 h60"/><path class="s-alarm" d="M250 22 l8 8 m0 -8 l-8 8"/>';
         break;
+      case "border":
+        o = horizon(ty) + '<rect class="f-near" x="0" y="100" width="400" height="10"/>' +
+          '<path class="s-dim" d="M0 84 H400 M0 94 H400"/>';
+        for (i = 0; i < 20; i++) o += '<path class="s-dim" d="M' + (i * 21 + 6) + ' 80 v20"/>';
+        o += '<path class="s-bone" d="M310 100 V28"/><path class="f-alarm" d="M310 28 h30 v8 h-30z"/><path class="f-bone" d="M310 36 h30 v8 h-30z"/><path class="f-signal" d="M310 44 h30 v8 h-30z"/>' +
+          '<rect class="f-bone" x="186" y="88" width="46" height="4"/><rect class="f-alarm" x="186" y="88" width="10" height="4"/><rect class="f-near" x="180" y="84" width="6" height="18"/>';
+        for (i = 0; i < 9; i++) o += fig(24 + i * 18, 106, 1 + (i % 3) * 0.12, "f-dim");
+        break;
       case "gang":
         o = horizon(ty) + '<rect class="f-near" x="0" y="100" width="400" height="10"/>';
         [140, 200, 260].forEach(function (x, k) { o += fig(x, 104, 1.9, "f-dim") + '<path class="s-bone" d="M' + (x + 8) + " 78 L" + (x + 18 + k * 2) + ' 56"/>'; });
@@ -535,6 +543,20 @@ main { padding-top: 22px; }
     }
     return '<svg class="art" viewBox="0 0 400 110" role="img" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><rect class="f-sky" width="400" height="110"/>' + o + "</svg>";
   }
+
+  /* short ambience per scene artwork */
+  var AMB = {
+    door: function () { [0, 0.35, 0.7].forEach(function (t) { tone(95, 0.12, "sine", 0.12, t, 60); noise(0.06, 0.18, 400, t); }); },
+    radio: function () { noise(1.6, 0.08, 3500); tone(900, 0.15, "sine", 0.02, 0.6, 500); },
+    rain: function () { noise(2.2, 0.07, 2500); },
+    fire: function () { for (var i = 0; i < 14; i++) noise(0.02, 0.14, 5000, Math.random() * 1.8); },
+    dog: function () { tone(300, 0.1, "square", 0.03, 0, 200); tone(300, 0.1, "square", 0.03, 0.22, 200); },
+    child: function () { tone(520, 0.5, "sine", 0.03, 0, 380); tone(500, 0.5, "sine", 0.02, 0.7, 340); },
+    trefoil: function () { sfx.geiger(22); },
+    gang: function () { tone(70, 1.2, "sawtooth", 0.04, 0, 55); },
+    border: function () { tone(262, 0.5, "triangle", 0.04); tone(330, 0.5, "triangle", 0.04, 0.25); },
+    camp: function () { tone(330, 0.4, "triangle", 0.035); tone(392, 0.5, "triangle", 0.035, 0.2); }
+  };
 
   /* strike map: rings around the target, you, and (after the blast) the fallout plume driven by the wind */
   var COMPASS = ["เหนือ", "ตะวันออกเฉียงเหนือ", "ตะวันออก", "ตะวันออกเฉียงใต้", "ใต้", "ตะวันตกเฉียงใต้", "ตะวันตก", "ตะวันตกเฉียงเหนือ"];
@@ -628,18 +650,18 @@ main { padding-top: 22px; }
       choices: [
         { t: "หมอบลง หันหลังให้แสง ปิดหูและอ้าปากไว้", r: function () {
           if (S.bf <= 0.15) return { txt: "คลื่นกระแทกมาถึงหลังจากนั้นหลายนาที เป็นเสียงครืนครางเหมือนฟ้าร้องไกล ๆ หน้าต่างสั่นเบา ๆ แต่ไม่มีอะไรแตก คุณหมอบอยู่นานจนแน่ใจว่าปลอดภัย", d: {} };
-          var dmg = Math.round({ deep: 0, mid: 5, weak: 20 }[S.f.shelter] * S.bf);
+          var dmg = Math.round({ deep: 0, mid: 5, weak: 24 }[S.f.shelter] * S.bf);
           return { txt: S.f.shelter === "weak" ? "เศษกระจก เศษไม้ และแผ่นหลังคาปลิวว่อนไปทั่ว แรงอัดกระแทกหลังคุณทั้งตัว ใบหน้าคุณรอด เพราะคุณหันหลังให้แสงทัน" : "พื้นสั่นสะท้านเหมือนมีค้อนยักษ์ตีลงมา ฝุ่นเต็มอากาศ แต่คุณยังมีลมหายใจ", d: { hp: -dmg, cause: "blast" }, set: { injury: dmg >= 20 ? 1 : 0 } };
         } },
         { t: "หันไปมองว่าแสงนั่นคืออะไร", r: function () {
           if (S.bf <= 0.15) return { txt: "คุณเห็นลูกไฟสีส้มลอยขึ้นสูงที่ขอบฟ้า ไม่มีอะไรเกิดกับตัวคุณ แต่ภาพนั้นจะไม่มีวันหายไป", d: { hope: -5 } };
-          var dmg = Math.round({ deep: 10, mid: 10, weak: 45 }[S.f.shelter] * S.bf);
+          var dmg = Math.round({ deep: 10, mid: 15, weak: 70 }[S.f.shelter] * S.bf);
           return { txt: S.f.shelter === "weak" ? "ภาพสุดท้ายที่คุณเห็นคือสีขาวสว่างจ้า แล้วโลกก็ดำมืด เมื่อตาเริ่มกลับมามองเห็น มีแผลฝังทั่วแขนจากเศษแตกหัก" : "แสงเผาจอตาคุณจนมองไม่เห็นไปหลายนาที เสียงตูมตามมาทีหลัง คุณเอามือกุมหน้าอยู่ในความมืด", d: { hp: -dmg, hope: -5, cause: "blast" }, set: { injury: dmg >= 20 ? 1 : 0 } };
         } }
       ],
       timeout: { t: "ค้างอยู่กับที่", r: function () {
         if (S.bf <= 0.15) return { txt: "คุณค้างมองลูกไฟที่ขอบฟ้าอย่างลืมตัว ไม่มีอันตรายใดมาถึงคุณ แต่ใจคุณหล่นลงไปอยู่ที่ปลายเท้า", d: { hope: -5 } };
-        var dmg = Math.round({ deep: 10, mid: 10, weak: 45 }[S.f.shelter] * S.bf);
+        var dmg = Math.round({ deep: 10, mid: 15, weak: 70 }[S.f.shelter] * S.bf);
         return { txt: "คุณไม่ทันขยับตัว แสงสาดเข้าตาเต็มที่", d: { hp: -dmg, hope: -5, cause: "blast" }, set: { injury: dmg >= 20 ? 1 : 0 } };
       } }
     },
@@ -752,13 +774,21 @@ main { padding-top: 22px; }
           var land = S.f.farm || S.f.boat;
           var rad = (S.f.plume ? 10 : 3) + (S.f.boat ? 5 : 0);
           return { txt: (S.f.farm ? "คุณมีที่ดินและเมล็ดพันธุ์ ปลูกผักและเก็บของป่ามาเสริม อาหารไม่หมดง่าย ๆ " : S.f.boat ? "คุณออกเรือเลียบฝั่งจับปลาทุกเช้า มีกินต่อไปได้ แม้จะรู้ว่าทะเลรับฝุ่นเข้ามาเยอะ " : "") + (S.f.plume ? "ฝุ่นที่ตกค้างอยู่รอบที่หลบยังทำให้ทุกวันที่นี่ไม่ปลอดภัยนัก " : "") + "คุณเปลี่ยนที่หลบภัยให้เป็นบ้านหลังเล็ก ๆ ปิดช่องลม มีที่เก็บน้ำ มีมุมหลับ ชีวิตช้าลงเหมือนกับคนที่ตัดสินใจจะอยู่", d: { food: land ? 1 : -2, hope: 5, rad: rad }, set: { route: "stay" } };
+        } },
+        { t: "ข้ามพรมแดนไปประเทศเพื่อนบ้าน ซึ่งไกลกว่าศูนย์พักพิงมาก", lock: function () {
+          if (S.f.slow || S.f.wheel) return "เดินทางไกลขนาดนั้นไม่ไหว";
+          return S.food >= 3 ? null : "เสบียงไม่พอสำหรับเดินทางไกล (ต้องมีอย่างน้อย 3 วัน)";
+        }, r: function () {
+          var fast = S.f.bike || S.f.boat;
+          var cost = Math.max(2, 5 - (S.f.filter ? 1 : 0) - (fast ? 1 : 0));
+          return { txt: "คุณเลือกเส้นทางที่ไม่มีใครรับประกันอะไร เดินทางผ่านหมู่บ้านร้างและทุ่งนาที่ไม่มีคนเกี่ยวมานาน น้ำค่อย ๆ หมดลงทุกวัน " + (fast ? "ยานพาหนะของคุณช่วยร่นระยะทางได้มาก " : "") + "แต่ทุกคืนคุณหลับโดยรู้ว่าพรมแดนอยู่ใกล้ขึ้นอีกหนึ่งวัน", d: { food: -cost, rad: 10, hp: (fast ? -6 : -15) - (S.f.injury ? 5 : 0), cause: "starve" }, set: { route: "border" }, log: "ตัดสินใจเสี่ยงเดินทางไกลเพื่อข้ามพรมแดน" };
         } }
       ]
     },
     {
       when: "วันที่ 7 · 11:05", place: "ระหว่างทาง", day: 7, timer: 14, art: "gang",
       text: function () {
-        return (S.f.route === "go"
+        return (S.f.route !== "stay"
           ? "ชายสามคนถือท่อนเหล็กยืนขวางถนนอยู่เบื้องหน้า คนหนึ่งตะโกนว่า \"วางของไว้ แล้วไปได้\""
           : "ชายสามคนเดินเข้ามาที่ที่หลบภัยของคุณ เห็นแสงตะเกียงจากข้างนอก คนหนึ่งยิ้มแต่ตาไม่ยิ้มด้วย") +
           (S.karma >= 2 ? "\n\nคนที่ยืนทางซ้ายมองหน้าคุณนานกว่าคนอื่น เหมือนเขากำลังนึกถึงอะไรบางอย่างที่ได้ยินมา" : S.karma <= -2 ? "\n\nเสียงพึมพำในกลุ่มพูดถึง \"คนที่ไม่เคยแบ่งใคร\" ดูเหมือนข่าวของคุณจะมาถึงก่อนตัวคุณแล้ว" : "");
@@ -797,20 +827,26 @@ main { padding-top: 22px; }
       } }
     },
     {
-      when: "วันที่ 10 · 16:40", place: "ปลายทาง", day: 10, art: function () { return S.f.route === "go" ? "camp" : "home"; },
+      when: "วันที่ 10 · 16:40", place: "ปลายทาง", day: 10, art: function () { return S.f.route === "go" ? "camp" : S.f.route === "border" ? "border" : "home"; },
       text: function () {
         var left = "เสบียงของคุณเหลือราว " + S.food + " วัน";
-        return (S.f.route === "go"
+        return (S.f.route === "border"
+          ? "ลวดหนามสองชั้นกับธงของอีกประเทศหนึ่งโบกอยู่ปลายถนน ผู้คนนับพันนั่งรออยู่ริมทาง เจ้าหน้าที่ฝั่งตรงข้ามเปิดด่านทีละร้อยคน และมีรถพยาบาลคอยรับคนที่ล้มลงตรงหน้าด่าน"
+          : S.f.route === "go"
           ? "เต็นท์สีขาวเรียงเป็นแถว ลวดหนามกับเครื่องวัดรังสีตั้งอยู่หน้าด่าน คนในชุดป้องกันกำลังตะโกนเรียกเลข เด็ก ๆ ยืนต่อแถวเงียบ ๆ"
           : "คืนนี้ มีผู้รอดชีวิตกลุ่มเล็ก ๆ เดินมาเรียกจากข้างบน พวกเขาเห็นควันจากหม้อต้มน้ำของคุณและอยากรู้ว่าที่นี่ปลอดภัยไหม")
           + "\n\n" + left + " คุณมีเวลาตัดสินใจครั้งสุดท้าย: เสบียงที่เหลือจะเป็นของใคร";
       },
       choices: [
-        { t: "ส่งเสบียงที่เหลือเข้าส่วนกลาง", r: function () {
-          return { txt: "มีเสียงตะโกนว่าขอบคุณจากใครสักคนที่คุณไม่รู้จัก ถ้าทุกคนยังต้องอยู่ต่อ ก็ควรมีใครสักคนเริ่มก่อน", d: { food: -S.food, hope: 15 }, set: { shared: 1 }, k: 2, log: "ส่งเสบียงที่เหลือทั้งหมดเข้าส่วนกลาง" };
+        { t: function () { return S.food > 0 ? "ส่งเสบียงที่เหลือเข้าส่วนกลาง" : "ไม่มีอะไรเหลือให้แบ่ง แต่ขออาสาช่วยงานส่วนกลางด้วยแรงของคุณ"; }, r: function () {
+          return S.food > 0
+            ? { txt: "มีเสียงตะโกนว่าขอบคุณจากใครสักคนที่คุณไม่รู้จัก ถ้าทุกคนยังต้องอยู่ต่อ ก็ควรมีใครสักคนเริ่มก่อน", d: { food: -S.food, hope: 15 }, set: { shared: 1 }, k: 2, log: "ส่งเสบียงที่เหลือทั้งหมดเข้าส่วนกลาง" }
+            : { txt: "คุณไม่มีอะไรให้ แต่คุณยกมือขึ้นเมื่อมีคนถามหาคนช่วยหามน้ำ เด็กหนุ่มคนหนึ่งยื่นถังให้โดยไม่พูดอะไร คืนนั้นคุณหลับสนิทเป็นครั้งแรกในรอบหลายวัน", d: { hope: 12 }, set: { shared: 1 }, k: 2, log: "ไม่มีเสบียงเหลือ แต่อาสาช่วยงานส่วนกลางด้วยแรงตัวเอง" };
         } },
-        { t: "เก็บไว้ให้ตัวเอง", r: function () {
-          return { txt: "คุณกอดกระเป๋าไว้แน่น ไม่มีใครว่าอะไร แต่สายตาของคนรอบข้างไม่เหมือนเดิมแล้ว", d: { hope: -10 }, set: { kept: 1 }, k: -2, log: "เก็บเสบียงที่เหลือไว้คนเดียว" };
+        { t: function () { return S.food > 0 ? "เก็บไว้ให้ตัวเอง" : "นั่งเงียบ ๆ ไม่เข้าไปยุ่งกับใคร"; }, r: function () {
+          return S.food > 0
+            ? { txt: "คุณกอดกระเป๋าไว้แน่น ไม่มีใครว่าอะไร แต่สายตาของคนรอบข้างไม่เหมือนเดิมแล้ว", d: { hope: -10 }, set: { kept: 1 }, k: -2, log: "เก็บเสบียงที่เหลือไว้คนเดียว" }
+            : { txt: "คุณนั่งพิงเสาโดยไม่พูดกับใคร ไม่มีใครมาถาม และคุณก็ไม่ถามใคร ความเงียบนั้นปลอดภัยดี แต่เย็นชา", d: { hope: -6 }, k: -1, log: "ไม่ขออะไรและไม่ให้อะไรกับใครที่ปลายทาง" };
         } }
       ]
     }
@@ -1220,14 +1256,16 @@ main { padding-top: 22px; }
     barely: { kind: "live", title: "ยังหายใจอยู่", body: "คุณรอดมาได้เกือบสิบวัน แต่สภาพไม่เหลือเหมือนเดิม ไม่มีใครรู้ว่าอีกกี่วันที่เหลือ บางครั้ง \"ยังไม่ตาย\" ก็นับเป็นชัยชนะ" },
     leader: { kind: "live", title: "คนที่ทุกคนไว้ใจ", body: "ผู้รอดชีวิตกลุ่มเล็ก ๆ ไม่ได้เลือกคุณเป็นผู้นำ แต่ทุกครั้งที่มีเรื่องต้องตัดสินใจ ทุกสายตาหันมาที่คุณก่อน เพราะพวกเขาจำได้ว่าตอนที่ทุกอย่างพังที่สุด คุณเป็นคนที่เลือกแบ่งปัน" },
     guardian: { kind: "live", title: "ผู้ปกป้องตัวน้อย", body: "คุณไม่ได้เป็นพ่อหรือแม่ของเธอ แต่เธอเรียกคุณแบบนั้นแล้วโดยไม่รู้ตัว การพาใครสักคนรอดมาด้วยกันกินเสบียงมากกว่าที่คิด แต่ก็ทำให้คุณมีเหตุผลที่จะตื่นขึ้นมาทุกเช้า" },
+    border: { kind: "live", title: "ผู้ลี้ภัยข้ามพรมแดน", body: "เจ้าหน้าที่ที่คุณพูดภาษาด้วยกันไม่ได้ตรวจเครื่องวัดรังสี ให้ผ้าห่มสีเทาหนึ่งผืนและกระดาษแผ่นเล็กที่เขียนเลขประจำตัว คุณกลายเป็นหมายเลขในรายชื่อของประเทศที่ไม่เคยไป แต่ที่นั่นมีอาหารร้อน ๆ และไม่มีใครไล่คุณไป" },
     alone: { kind: "live", title: "รอดอยู่คนเดียว", body: "คุณรอดมาได้ด้วยเสบียงที่เก็บไว้ ไม่มีใครมาทวง และไม่มีใครมาเยี่ยม ที่หลบภัยของคุณเงียบกว่าที่ไหน ๆ เสียงเดียวที่ได้ยินคือเสียงลมหายใจของตัวเอง" }
   };
-  var ORDER = ["blast", "rad", "starve", "violence", "shelter", "community", "barely", "leader", "guardian", "alone"];
+  var ORDER = ["blast", "rad", "starve", "violence", "shelter", "community", "barely", "leader", "guardian", "alone", "border"];
 
   function pickEnding(dead) {
     if (dead) return deathCause();
     if (S.f.carry && S.hp >= 25) return "guardian";
     if (S.f.route === "stay" && S.karma >= 3 && S.hp >= 30) return "leader";
+    if (S.f.route === "border" && S.hp >= 35 && S.rad < 75) return "border";
     if (S.f.route === "go" && S.hp >= 40 && S.rad < 70) return "shelter";
     if (S.f.route === "stay" && S.hp >= 30 && S.hope >= 40) return "community";
     if (S.f.kept && S.karma <= -2) return "alone";
@@ -1362,6 +1400,8 @@ main { padding-top: 22px; }
     hud();
     if (S.i === 0) sfx.siren();
     else if (S.rad >= 5) sfx.geiger(Math.min(16, 2 + Math.round(S.rad / 5)));
+    var ak = typeof sc.art === "function" ? sc.art() : sc.art;
+    if (S.i > 0 && ak && AMB[ak]) AMB[ak]();
     var story = head(sc) + '<div class="story">' + paras(sc.text(S)) + "</div>" + (sc.extra ? sc.extra() : "");
     if (sc.timer) {
       stage.innerHTML = story +
@@ -1459,7 +1499,7 @@ main { padding-top: 22px; }
       if (S.f.carry) extra += " เด็กหญิงตัวเล็กที่คุณพามาหลับอยู่บนตักคุณ ตุ๊กตาแขนขาดยังอยู่ในมือเธอ";
       if (S.f.dog) extra += " สุนัขตัวผอมนอนขดอยู่ที่เท้าคุณ มันหนักขึ้นเล็กน้อยตั้งแต่วันแรกที่เจอกัน";
     }
-    var pts = clamp(S.karma, -4, 4) * 2 + S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (S.f.carry ? 8 : 0) + (id === "shelter" || id === "community" || id === "leader" || id === "guardian" ? 15 : 0);
+    var pts = clamp(S.karma, -4, 4) * 2 + S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (S.f.carry ? 8 : 0) + (id === "shelter" || id === "community" || id === "leader" || id === "guardian" || id === "border" ? 15 : 0);
     var rk = dead ? "D" : pts >= 85 ? "S" : pts >= 70 ? "A" : pts >= 55 ? "B" : "C";
     // surviving with almost no health can't rate above B, however kind you were
     if (!dead && S.hp < 25 && (rk === "S" || rk === "A")) rk = "B";
