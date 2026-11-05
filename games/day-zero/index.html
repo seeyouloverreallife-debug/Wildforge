@@ -145,6 +145,35 @@ main { padding-top: 22px; }
 .prog i { flex: 1; height: 3px; background: #23271d; }
 .prog i.on { background: var(--signal); }
 
+/* Artwork: flat SVG scenes, drawn with the page's own palette */
+.art { display: block; width: 100%; height: auto; margin: 4px 0 12px; border: 1px solid var(--line); background: #171b14; }
+.f-sky { fill: #171b14; } .f-far { fill: #262c1f; } .f-near { fill: #0d0f0b; }
+.f-bone { fill: var(--bone); } .f-dim { fill: var(--dim); } .f-signal { fill: var(--signal); } .f-alarm { fill: var(--alarm); } .f-ok { fill: var(--ok); } .f-flash { fill: #fff6d6; }
+.s-line { stroke: #3a4230; fill: none; stroke-width: 1; }
+.s-near { stroke: #0d0f0b; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.s-bone { stroke: var(--bone); fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.s-dim { stroke: var(--dim); fill: none; stroke-width: 1.2; stroke-linecap: round; }
+.s-signal { stroke: var(--signal); fill: none; stroke-width: 1.6; stroke-linecap: round; }
+.s-alarm { stroke: var(--alarm); fill: none; stroke-width: 1.6; }
+.mapsvg .t { font: 11px var(--f-body); fill: var(--dim); }
+.mapsvg .t-big { font: 700 20px var(--f-mono); fill: var(--signal); }
+.mapsvg .t-bad { font: 600 12px var(--f-body); fill: var(--alarm); }
+.mapsvg .t-ok { font: 600 12px var(--f-body); fill: var(--ok); }
+.mapsvg .t-sm { font: 10px var(--f-mono); fill: var(--dim); }
+.item.bad { color: var(--alarm); border-color: #6a2e25; }
+.namerow { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.namerow .end-title { margin: 0; }
+.avatar { width: 72px; height: 72px; flex: none; border-radius: 50%; border: 1px solid var(--line); }
+.who-row { display: flex; align-items: center; gap: 10px; margin: -2px 0 8px; }
+.who-row .avatar { width: 40px; height: 40px; }
+.who-row .who-line { margin: 0; }
+.log { margin-top: 20px; }
+.log h3 { margin: 0 0 6px; font-family: var(--f-display); font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: var(--signal); }
+.log ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 15px; line-height: 1.55; }
+.log li { padding-left: 16px; position: relative; color: var(--dim); }
+.log li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; background: var(--dim); }
+.log li.up { color: var(--bone); } .log li.up::before { background: var(--ok); }
+.log li.down { color: var(--bone); } .log li.down::before { background: var(--alarm); }
 .roll-k { font-family: var(--f-mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--signal); margin-top: 24px; }
 .roll-name { font-family: var(--f-display); font-weight: 700; font-size: clamp(40px, 12vw, 64px); line-height: 1.1; margin: 8px 0 4px; min-height: 1.2em; }
 .roll-sub { color: var(--dim); font-size: 15px; min-height: 1.6em; }
@@ -225,9 +254,17 @@ main { padding-top: 22px; }
     lastChar = c.id;
     var f = {};
     for (var k in c.items) f[k] = c.items[k];
-    return { hp: c.hp, rad: 0, food: c.food, hope: c.hope, cause: "starve", f: f, i: 0, day: 0, char: c, ev: Math.floor(Math.random() * EVENTS.length) };
+    // where you are decides how hard the blast hits (bf) and how much fallout reaches you (rf)
+    var wind = Math.floor(Math.random() * 360);
+    var inPlume = c.gz <= 160 && angDiff(c.bearing, wind) <= 40;
+    var rf = inPlume ? 1.8 - Math.min(c.gz, 150) / 150 * 0.8 : (c.gz <= 6 ? 0.5 : 0.3);
+    var evs = EVENTS.filter(function (e) { return !e.only || e.only.indexOf(c.type) >= 0; });
+    return { hp: c.hp, rad: 0, food: c.food, hope: c.hope, cause: "starve", f: f, i: 0, day: 0, char: c,
+      wind: wind, inPlume: inPlume, rf: rf, bf: blastFactor(c.gz), karma: 0, log: [], evObj: evs[Math.floor(Math.random() * evs.length)] };
   }
-  function cur() { var sc = SC[S.i]; return sc.pick ? EVENTS[S.ev] : sc; }
+  function blastFactor(gz) { return gz <= 3 ? 1.6 : gz <= 6 ? 1.3 : gz <= 10 ? 1 : gz <= 20 ? 0.75 : gz <= 50 ? 0.4 : 0.15; }
+  function angDiff(a, b) { var d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+  function cur() { var sc = SC[S.i]; return sc.pick ? S.evObj : sc; }
 
   /* ---------- sound (synthesized, starts after the first tap) ---------- */
   var AC = null, soundOn = true;
@@ -282,7 +319,9 @@ main { padding-top: 22px; }
   function apply(d) {
     d = d || {};
     var b = snap();
-    S.hp += d.hp || 0; S.rad += d.rad || 0; S.hope += d.hope || 0; S.food += d.food || 0;
+    var rd = d.rad || 0;
+    if (rd > 0) rd *= S.rf; // fallout reaching you depends on where you live and the wind
+    S.hp += d.hp || 0; S.rad += rd; S.hope += d.hope || 0; S.food += d.food || 0;
     if (d.cause) S.cause = d.cause;
     if (S.food < 0) { S.hp += S.food * 12; S.food = 0; S.cause = "starve"; }
     S.hp = clamp(S.hp, 0, 100); S.rad = clamp(S.rad, 0, 100); S.hope = clamp(S.hope, 0, 100); S.food = clamp(S.food, 0, 12);
@@ -310,7 +349,7 @@ main { padding-top: 22px; }
     setBar("food", (S.food / 8) * 100, S.food <= 1 ? "bad" : S.food <= 3 ? "warn" : "ok");
     $("#v-hope").textContent = Math.round(S.hope) + "%";
     setBar("hope", S.hope, "neutral");
-    var inv = ITEMS.filter(function (it) { return S.f[it[0]]; }).map(function (it) { return '<span class="item">' + it[1] + "</span>"; });
+    var inv = ITEMS.filter(function (it) { return S.f[it[0]]; }).map(function (it) { return '<span class="item' + (it[2] ? " bad" : "") + '">' + it[1] + "</span>"; });
     $("#items").innerHTML = inv.length ? inv.join("") : '<span class="item none">ยังไม่มีของติดตัว</span>';
     var p = "";
     for (var k = 0; k < SC.length; k++) p += '<i class="' + (k <= S.i ? "on" : "") + '"></i>';
@@ -337,14 +376,173 @@ main { padding-top: 22px; }
   }
   function head(sc) {
     var pl = typeof sc.place === "function" ? sc.place() : sc.place;
-    return '<div class="when"><span class="mono">' + sc.when + "</span><span>" + pl + "</span></div>";
+    var ak = typeof sc.art === "function" ? sc.art() : sc.art;
+    return art(ak) + '<div class="when"><span class="mono">' + sc.when + "</span><span>" + pl + "</span></div>";
   }
   function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+  /* ---------- artwork: small flat SVG scenes ---------- */
+  function fig(x, y, s, cls) {
+    return '<g class="' + (cls || "f-bone") + '"><circle cx="' + x + '" cy="' + (y - 15 * s) + '" r="' + 3 * s + '"/><path d="M' + (x - 4 * s) + " " + (y - 11 * s) + "h" + 8 * s + "l" + 1.5 * s + " " + 11 * s + "h" + (-11 * s) + 'z"/></g>';
+  }
+  function wedge(cx, cy, r, a0, a1) {
+    var p = function (a) { var t = a * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
+    var s = p(a0), e = p(a1);
+    return "M" + cx + " " + cy + " L" + s[0].toFixed(1) + " " + s[1].toFixed(1) + " A" + r + " " + r + " 0 0 1 " + e[0].toFixed(1) + " " + e[1].toFixed(1) + "Z";
+  }
+  function horizon(type) {
+    var o = "", i;
+    if (type === "urban") {
+      [[6, 22, 38], [32, 18, 56], [54, 26, 30], [84, 16, 66], [104, 28, 44], [136, 20, 74], [160, 24, 40], [188, 18, 58], [210, 30, 36], [244, 20, 70], [268, 26, 46], [298, 18, 60], [320, 28, 34], [352, 22, 52], [376, 24, 40]].forEach(function (r) {
+        o += '<rect class="f-far" x="' + r[0] + '" y="' + (110 - r[2]) + '" width="' + r[1] + '" height="' + r[2] + '"/>';
+      });
+      o += '<rect class="f-near" x="0" y="100" width="400" height="10"/>';
+    } else if (type === "rural") {
+      o += '<path class="f-far" d="M0 84 Q60 72 120 82 T240 80 T400 78 V110 H0z"/>';
+      for (i = 0; i < 4; i++) o += '<path class="s-line" d="M0 ' + (92 + i * 5) + ' H400"/>';
+      o += '<g class="f-near"><rect x="62" y="70" width="34" height="14"/><path d="M58 70 L79 56 L100 70z"/><rect x="66" y="84" width="3" height="12"/><rect x="88" y="84" width="3" height="12"/></g>';
+      [300, 346].forEach(function (x) {
+        o += '<path class="s-near" d="M' + x + " 100 V66 M" + x + " 66 q-14 -6 -22 4 M" + x + " 66 q14 -6 22 4 M" + x + " 66 q-4 -12 -14 -14 M" + x + " 66 q4 -12 14 -14" + '"/>';
+      });
+      o += '<rect class="f-near" x="0" y="102" width="400" height="8"/>';
+    } else {
+      o += '<path class="f-far" d="M0 100 L60 52 L110 88 L170 40 L240 90 L300 56 L360 86 L400 66 V110 H0z"/>';
+      o += '<path class="f-near" d="M0 110 V92 L50 74 L120 96 L200 70 L280 98 L340 78 L400 94 V110z"/>';
+      [30, 96, 150, 250, 322, 372].forEach(function (x, k) {
+        o += '<path class="f-near" d="M' + x + " " + (98 - k % 3 * 4) + " l-7 14 h14z M" + x + " " + (88 - k % 3 * 4) + " l-6 14 h12z" + '"/>';
+      });
+    }
+    return o;
+  }
+  function art(kind) {
+    if (!kind) return "";
+    var ty = S.char.type, o = "", i;
+    switch (kind) {
+      case "alert":
+        o = '<path class="s-signal" stroke-dasharray="4 5" d="M30 12 Q150 4 240 64"/><path class="f-signal" d="M240 64 l-10 -1 l5 -9z"/>' +
+          '<circle class="f-alarm" cx="340" cy="28" r="9"/><circle class="s-alarm" cx="340" cy="28" r="17" opacity=".6"/><circle class="s-alarm" cx="340" cy="28" r="26" opacity=".3"/>' + horizon(ty);
+        break;
+      case "shelter":
+        o = '<rect class="f-near" x="0" y="96" width="400" height="14"/>' +
+          '<g transform="translate(48 30)"><rect class="f-near" width="64" height="66"/><path class="s-signal" d="M10 16 h12 v10 h12 v10 h12 v10 h8"/><rect class="f-far" x="0" y="0" width="64" height="6"/></g>' +
+          '<g transform="translate(168 30)"><rect class="f-near" width="64" height="66"/>' + [[12, 40], [24, 48], [36, 42], [48, 50], [18, 58], [42, 60]].map(function (p) { return fig(p[0] + 4, p[1] + 14, 0.7); }).join("") + "</g>" +
+          '<g transform="translate(288 30)"><path class="f-near" d="M0 66 V30 L32 8 L64 30 V66z"/><rect class="f-signal" x="24" y="38" width="16" height="12" opacity=".5"/></g>';
+        break;
+      case "blast":
+        o = '<rect class="f-flash" width="400" height="110" opacity=".16"/>' +
+          '<path class="f-alarm" d="M188 100 C190 72 184 60 196 52 L204 52 C216 60 210 72 212 100z" opacity=".9"/><ellipse class="f-signal" cx="200" cy="40" rx="48" ry="20"/><ellipse class="f-alarm" cx="166" cy="49" rx="24" ry="12" opacity=".85"/><ellipse class="f-alarm" cx="234" cy="49" rx="24" ry="12" opacity=".85"/>' + horizon(ty);
+        break;
+      case "ash":
+        o = '<rect class="f-alarm" width="400" height="110" opacity=".10"/>' + horizon(ty);
+        for (i = 0; i < 40; i++) o += '<circle class="f-dim" cx="' + ((i * 47 + 13) % 400) + '" cy="' + ((i * 29 + 7) % 100) + '" r="' + (1 + (i % 3) * 0.5) + '" opacity=".75"/>';
+        break;
+      case "door":
+        o = '<rect class="f-near" x="0" y="98" width="400" height="12"/><rect class="f-near" x="150" y="12" width="84" height="98"/><rect class="f-far" x="156" y="18" width="72" height="92"/><rect class="f-signal" x="188" y="24" width="8" height="82" opacity=".75"/>' +
+          fig(296, 104, 1.5, "f-dim") + fig(322, 104, 0.9, "f-dim");
+        break;
+      case "rain":
+        o = '<ellipse class="f-far" cx="90" cy="10" rx="80" ry="22"/><ellipse class="f-far" cx="260" cy="6" rx="110" ry="24"/>';
+        for (i = 0; i < 46; i++) { var rx = (i * 37 + 5) % 400, ry = (i * 23 + 18) % 80; o += '<path class="s-dim" opacity=".7" d="M' + rx + " " + ry + " l-4 11" + '"/>'; }
+        o += horizon(ty);
+        break;
+      case "wounded":
+        o = '<rect class="f-near" x="0" y="98" width="400" height="12"/><rect class="f-near" x="40" y="26" width="52" height="84"/><rect class="f-signal" x="64" y="32" width="5" height="72" opacity=".65"/>' +
+          '<rect class="f-bone" x="180" y="92" width="38" height="7" rx="3.5"/><circle class="f-bone" cx="222" cy="94" r="5.5"/>';
+        break;
+      case "dog":
+        o = '<rect class="f-near" x="0" y="100" width="400" height="10"/><g class="f-dim"><ellipse cx="208" cy="84" rx="24" ry="11"/><circle cx="238" cy="73" r="9"/><path d="M232 66 l-3 -10 l8 5z M243 65 l3 -10 l-8 6z"/><rect x="192" y="90" width="5" height="12"/><rect x="204" y="92" width="5" height="10"/><rect x="220" y="92" width="5" height="10"/><rect x="230" y="90" width="5" height="12"/></g><path class="s-dim" d="M184 80 q-12 -6 -14 -18"/><circle class="f-signal" cx="242" cy="71" r="1.6"/>';
+        break;
+      case "trader":
+        o = '<rect class="f-near" x="0" y="100" width="400" height="10"/><ellipse class="f-far" cx="196" cy="86" rx="11" ry="14"/>' + fig(224, 104, 2.4, "f-dim") + '<rect class="f-signal" x="262" y="82" width="18" height="22"/><path class="s-near" d="M265 82 v-8 h12 v8"/>';
+        break;
+      case "tap":
+        o = horizon(ty) + '<rect class="f-near" x="150" y="30" width="86" height="12" rx="3"/><rect class="f-near" x="186" y="36" width="14" height="30"/><path class="s-bone" d="M192 66 v6"/><circle class="f-signal" cx="193" cy="82" r="3.4"/><path class="s-dim" d="M175 96 h42"/>';
+        break;
+      case "animal":
+        o = horizon(ty) + '<ellipse class="f-bone" cx="206" cy="98" rx="30" ry="9"/><circle class="f-bone" cx="240" cy="96" r="7"/><path class="s-bone" d="M184 100 l-8 6 M196 104 l-4 6 M216 104 l4 6 M226 100 l8 6"/>';
+        break;
+      case "radio":
+        o = '<rect class="f-near" x="0" y="100" width="400" height="10"/><rect class="f-near" x="150" y="46" width="100" height="54" rx="5"/><circle class="s-signal" cx="182" cy="73" r="14"/><path class="s-signal" d="M182 73 l8 -6"/><rect class="f-dim" x="214" y="58" width="24" height="3"/><rect class="f-dim" x="214" y="68" width="24" height="3"/><rect class="f-dim" x="214" y="78" width="24" height="3"/>' +
+          '<path class="s-bone" d="M240 46 L280 8"/><path class="s-signal" opacity=".85" d="M288 24 q10 -9 20 0 M294 12 q16 -16 32 0 M300 2 q22 -22 44 0"/>';
+        break;
+      case "trefoil":
+        o = '<circle class="f-signal" cx="200" cy="55" r="38"/>' + [90, 210, 330].map(function (a) { return '<path class="f-near" d="' + wedge(200, 55, 30, a - 30, a + 30) + '"/>'; }).join("") + '<circle class="f-near" cx="200" cy="55" r="6"/>' +
+          '<rect class="f-near" x="0" y="100" width="400" height="10"/>';
+        break;
+      case "road":
+        o = horizon(ty) + '<path class="f-near" d="M0 110 L176 60 L224 60 L400 110z"/><path class="s-signal" stroke-dasharray="5 7" d="M200 110 L200 60"/>' +
+          '<rect class="f-far" x="96" y="92" width="30" height="11"/><rect class="f-far" x="268" y="86" width="26" height="10"/><rect class="f-far" x="230" y="72" width="14" height="6"/>' +
+          '<path class="s-dim" d="M214 60 q-7 -9 1 -16 q8 -8 0 -16"/>';
+        break;
+      case "gang":
+        o = horizon(ty) + '<rect class="f-near" x="0" y="100" width="400" height="10"/>';
+        [140, 200, 260].forEach(function (x, k) { o += fig(x, 104, 1.9, "f-dim") + '<path class="s-bone" d="M' + (x + 8) + " 78 L" + (x + 18 + k * 2) + ' 56"/>'; });
+        break;
+      case "camp":
+        o = '<rect class="f-near" x="0" y="98" width="400" height="12"/>';
+        [[50, 100, 46], [150, 100, 52], [262, 100, 44]].forEach(function (t) { o += '<path class="f-far" d="M' + (t[0]) + " " + t[1] + " L" + (t[0] + t[2] / 2) + " " + (t[1] - 44) + " L" + (t[0] + t[2]) + " " + t[1] + 'z"/><path class="f-near" d="M' + (t[0] + t[2] / 2 - 6) + " " + t[1] + " L" + (t[0] + t[2] / 2) + " " + (t[1] - 22) + " L" + (t[0] + t[2] / 2 + 6) + " " + t[1] + 'z"/>'; });
+        o += '<path class="s-dim" d="M0 92 H400"/>';
+        for (i = 0; i < 20; i++) o += '<path class="s-dim" d="M' + (i * 21) + " 92 v8" + '"/>';
+        o += '<path class="s-bone" d="M350 98 V30"/><path class="f-ok" d="M350 30 h26 v14 h-26z"/>';
+        break;
+      case "home":
+        o = horizon(ty) + '<rect class="f-near" x="0" y="100" width="400" height="10"/><g transform="translate(170 52)"><circle class="f-signal" cx="30" cy="32" r="34" opacity=".14"/><rect class="f-near" x="6" y="22" width="48" height="26"/><path class="f-near" d="M0 22 L30 4 L60 22z"/><rect class="f-signal" x="24" y="30" width="12" height="10" opacity=".85"/></g>' +
+          fig(250, 104, 1.3, "f-dim");
+        break;
+      case "dawn":
+        o = '<rect class="f-signal" width="400" height="110" opacity=".07"/><circle class="f-signal" cx="200" cy="96" r="30"/>';
+        for (i = 0; i < 9; i++) { var a = (-170 + i * 20) * Math.PI / 180; o += '<path class="s-signal" opacity=".5" d="M' + (200 + 38 * Math.cos(a)).toFixed(1) + " " + (96 + 38 * Math.sin(a)).toFixed(1) + " L" + (200 + 54 * Math.cos(a)).toFixed(1) + " " + (96 + 54 * Math.sin(a)).toFixed(1) + '"/>'; }
+        o += horizon(ty);
+        break;
+      case "ruin":
+        o = '<rect class="f-alarm" width="400" height="110" opacity=".14"/>' + horizon(ty);
+        for (i = 0; i < 30; i++) o += '<circle class="f-dim" cx="' + ((i * 53 + 11) % 400) + '" cy="' + ((i * 31 + 5) % 100) + '" r="1.3" opacity=".6"/>';
+        o += '<rect class="f-near" x="0" y="102" width="400" height="8"/>' + fig(200, 106, 1.4, "f-dim");
+        break;
+    }
+    return '<svg class="art" viewBox="0 0 400 110" role="img" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><rect class="f-sky" width="400" height="110"/>' + o + "</svg>";
+  }
+
+  /* strike map: rings around the target, you, and (after the blast) the fallout plume driven by the wind */
+  var COMPASS = ["เหนือ", "ตะวันออกเฉียงเหนือ", "ตะวันออก", "ตะวันออกเฉียงใต้", "ใต้", "ตะวันตกเฉียงใต้", "ตะวันตก", "ตะวันตกเฉียงเหนือ"];
+  function compass(a) { return COMPASS[Math.round(((a % 360) + 360) % 360 / 45) % 8]; }
+  function zoneName(gz) { return gz <= 3 ? "เขตทำลายหนัก" : gz <= 6 ? "เขตเสียหายสูง" : gz <= 10 ? "เขตเสียหายปานกลาง" : gz <= 30 ? "เขตเสียหายเบา" : "อยู่นอกเขตระเบิด"; }
+  function mapSvg(plume) {
+    var c = S.char, cx = 130, cy = 92, o = "";
+    var pr = function (km) { return Math.min(86, 14 * Math.sqrt(km)); };
+    var rad = function (a) { return (a - 90) * Math.PI / 180; };
+    o += '<rect class="f-sky" width="400" height="184"/>';
+    if (plume) {
+      var L = 88, a0 = rad(S.wind - 40), a1 = rad(S.wind + 40);
+      o += '<path class="f-alarm" opacity=".3" d="M' + cx + " " + cy + " L" + (cx + L * Math.cos(a0)).toFixed(1) + " " + (cy + L * Math.sin(a0)).toFixed(1) + " A" + L + " " + L + " 0 0 1 " + (cx + L * Math.cos(a1)).toFixed(1) + " " + (cy + L * Math.sin(a1)).toFixed(1) + 'Z"/>';
+      var wa = rad(S.wind);
+      o += '<path class="s-signal" d="M' + cx + " " + cy + " L" + (cx + 88 * Math.cos(wa)).toFixed(1) + " " + (cy + 88 * Math.sin(wa)).toFixed(1) + '" stroke-dasharray="3 4"/>';
+    }
+    o += '<circle class="f-alarm" cx="' + cx + '" cy="' + cy + '" r="' + pr(3) + '" opacity=".28"/>';
+    [3, 10, 30].forEach(function (km) { o += '<circle class="s-dim" cx="' + cx + '" cy="' + cy + '" r="' + pr(km) + '" stroke-dasharray="3 4" opacity=".7"/>'; });
+    o += '<text class="t-sm" x="' + (cx + pr(3) * 0.72) + '" y="' + (cy - pr(3) * 0.72 - 2) + '">3 กม.</text><text class="t-sm" x="' + (cx + pr(10) * 0.72) + '" y="' + (cy - pr(10) * 0.72 - 2) + '">10</text><text class="t-sm" x="' + (cx + pr(30) * 0.72) + '" y="' + (cy - pr(30) * 0.72 - 2) + '">30</text>';
+    o += '<circle class="f-alarm" cx="' + cx + '" cy="' + cy + '" r="3.5"/>';
+    var ang = rad(c.bearing), rr = pr(c.gz), x = cx + rr * Math.cos(ang), y = cy + rr * Math.sin(ang);
+    o += '<circle class="s-signal" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="9"/><circle class="f-signal" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.5"/>';
+    o += '<text class="t" x="' + (x + 12).toFixed(1) + '" y="' + (y + 4).toFixed(1) + '">คุณ</text>';
+    var lx = 268;
+    o += '<text class="t" x="' + lx + '" y="26">' + c.gzName + "</text>";
+    o += '<text class="t-big" x="' + lx + '" y="52">' + (c.gz >= 100 ? "&gt;" : "~") + c.gz + ' กม.</text>';
+    o += '<text class="t" x="' + lx + '" y="68">ห่างจากจุดระเบิด</text>';
+    o += '<text class="' + (c.gz <= 10 ? "t-bad" : c.gz <= 30 ? "t" : "t-ok") + '" x="' + lx + '" y="90">' + zoneName(c.gz) + "</text>";
+    if (plume) {
+      o += '<text class="' + (S.inPlume ? "t-bad" : "t-ok") + '" x="' + lx + '" y="112">' + (S.inPlume ? "อยู่ในแนวฝุ่นรังสี" : "ฝุ่นพัดไปทางอื่น") + "</text>";
+      o += '<text class="t" x="' + lx + '" y="130">ลมพัดไปทาง' + compass(S.wind) + "</text>";
+    } else {
+      o += '<text class="t" x="' + lx + '" y="112">ทิศลมยังไม่ทราบ</text>';
+    }
+    return '<svg class="art mapsvg" viewBox="0 0 400 184" role="img" aria-label="แผนที่ระยะห่างจากจุดระเบิด" preserveAspectRatio="xMidYMid meet">' + o + "</svg>";
+  }
 
   /* ---------- scenes ---------- */
   var SC = [
     {
-      when: "วันที่ 0 · 07:42", place: function () { return S.char.place; }, day: 0, timer: 12,
+      when: "วันที่ 0 · 07:42", place: function () { return S.char.place; }, day: 0, timer: 12, art: "alert",
       text: function () {
         var c = S.char;
         return '<span class="alert-tag">แจ้งเตือนภัย</span>' + c.alert + "\n\nโทรศัพท์ในมือคุณสั่นพร้อมเสียงไซเรนที่ไม่เคยได้ยินมาก่อน ตรวจพบขีปนาวุธมุ่งหน้าเข้าสู่ภูมิภาค คาดว่าจะถึงเป้าหมายในอีก 14 นาที ให้หาที่กำบังทันที\n\nความขัดแย้งที่ทุกคนบอกว่า \"ไม่มีวันลุกลาม\" เพิ่งกลายเป็นสงครามโลกครั้งที่ 3 " + c.tail;
@@ -365,7 +563,7 @@ main { padding-top: 22px; }
       } }
     },
     {
-      when: "วันที่ 0 · 07:47", place: "ระหว่างทางไปที่หลบ", day: 0, timer: 14,
+      when: "วันที่ 0 · 07:47", place: "ระหว่างทางไปที่หลบ", day: 0, timer: 14, art: "shelter",
       text: function () {
         return S.char.shelterIntro + "\n\nเหลือเวลาอีกราว " + (S.f.late ? "4" : "9") + " นาทีก่อนถึงเป้าหมาย คุณมีที่ให้หลบไม่กี่แห่ง และต้องเลือกตอนนี้";
       },
@@ -383,37 +581,53 @@ main { padding-top: 22px; }
       } }
     },
     {
-      when: "วันที่ 0 · 07:56", place: "ทุกที่", day: 0, timer: 6, blast: true,
+      when: "วันที่ 0 · 07:56", place: function () { return S.char.gzName + " · ห่างออกไป " + S.char.gz + " กม."; }, day: 0, timer: 6, blast: true, art: "blast",
       text: function () {
-        return "ทุกอย่างเงียบไปหนึ่งวินาที แล้วแสงขาวทะลุเข้ามาเกือบทุกช่อง\n\nคุณมีเวลาตัดสินใจแค่ไม่กี่วินาที";
+        var far = S.bf <= 0.15, mid = S.bf <= 0.4;
+        return (far
+          ? "ขอบฟ้าทางไกลสว่างวาบเป็นสีขาวอยู่ครู่เดียว ไม่มีเสียงอะไรเลย"
+          : mid
+            ? "แสงขาววาบข้ามท้องฟ้าจากทิศของตัวเมือง ไม่นานก็มีเสียงกระแทกตามมา"
+            : "ทุกอย่างเงียบไปหนึ่งวินาที แล้วแสงขาวทะลุเข้ามาเกือบทุกช่อง") +
+          "\n\n" + (far ? "คลื่นกระแทกจะมาถึงช้ากว่านั้น คุณมีเวลาตัดสินใจไม่กี่วินาที" : "คุณมีเวลาตัดสินใจแค่ไม่กี่วินาที") +
+          "\n\nคุณอยู่ห่างจุดระเบิดราว " + S.char.gz + " กม. ซึ่งเป็น" + zoneName(S.char.gz);
       },
       choices: [
         { t: "หมอบลง หันหลังให้แสง ปิดหูและอ้าปากไว้", r: function () {
-          var dmg = Math.round({ deep: 0, mid: 5, weak: 20 }[S.f.shelter] * (S.char.blastMult || 1));
-          return { txt: S.f.shelter === "weak" ? "เศษกระจก เศษไม้ และแผ่นหลังคาปลิวว่อนไปทั่ว แรงอัดกระแทกหลังคุณทั้งตัว ใบหน้าคุณรอด เพราะคุณหันหลังให้แสงทัน" : "พื้นสั่นสะท้านเหมือนมีค้อนยักษ์ตีลงมา ฝุ่นเต็มอากาศ แต่คุณยังมีลมหายใจ", d: { hp: -dmg, cause: "blast" } };
+          if (S.bf <= 0.15) return { txt: "คลื่นกระแทกมาถึงหลังจากนั้นหลายนาที เป็นเสียงครืนครางเหมือนฟ้าร้องไกล ๆ หน้าต่างสั่นเบา ๆ แต่ไม่มีอะไรแตก คุณหมอบอยู่นานจนแน่ใจว่าปลอดภัย", d: {} };
+          var dmg = Math.round({ deep: 0, mid: 5, weak: 20 }[S.f.shelter] * S.bf);
+          return { txt: S.f.shelter === "weak" ? "เศษกระจก เศษไม้ และแผ่นหลังคาปลิวว่อนไปทั่ว แรงอัดกระแทกหลังคุณทั้งตัว ใบหน้าคุณรอด เพราะคุณหันหลังให้แสงทัน" : "พื้นสั่นสะท้านเหมือนมีค้อนยักษ์ตีลงมา ฝุ่นเต็มอากาศ แต่คุณยังมีลมหายใจ", d: { hp: -dmg, cause: "blast" }, set: { injury: dmg >= 20 ? 1 : 0 } };
         } },
         { t: "หันไปมองว่าแสงนั่นคืออะไร", r: function () {
-          var dmg = Math.round({ deep: 10, mid: 10, weak: 45 }[S.f.shelter] * (S.char.blastMult || 1));
-          return { txt: S.f.shelter === "weak" ? "ภาพสุดท้ายที่คุณเห็นคือสีขาวสว่างจ้า แล้วโลกก็ดำมืด เมื่อตาเริ่มกลับมามองเห็น มีแผลฝังทั่วแขนจากเศษแตกหัก" : "แสงเผาจอตาคุณจนมองไม่เห็นไปหลายนาที เสียงตูมตามมาทีหลัง คุณเอามือกุมหน้าอยู่ในความมืด", d: { hp: -dmg, hope: -5, cause: "blast" } };
+          if (S.bf <= 0.15) return { txt: "คุณเห็นลูกไฟสีส้มลอยขึ้นสูงที่ขอบฟ้า ไม่มีอะไรเกิดกับตัวคุณ แต่ภาพนั้นจะไม่มีวันหายไป", d: { hope: -5 } };
+          var dmg = Math.round({ deep: 10, mid: 10, weak: 45 }[S.f.shelter] * S.bf);
+          return { txt: S.f.shelter === "weak" ? "ภาพสุดท้ายที่คุณเห็นคือสีขาวสว่างจ้า แล้วโลกก็ดำมืด เมื่อตาเริ่มกลับมามองเห็น มีแผลฝังทั่วแขนจากเศษแตกหัก" : "แสงเผาจอตาคุณจนมองไม่เห็นไปหลายนาที เสียงตูมตามมาทีหลัง คุณเอามือกุมหน้าอยู่ในความมืด", d: { hp: -dmg, hope: -5, cause: "blast" }, set: { injury: dmg >= 20 ? 1 : 0 } };
         } }
       ],
       timeout: { t: "ค้างอยู่กับที่", r: function () {
-        var dmg = Math.round({ deep: 10, mid: 10, weak: 45 }[S.f.shelter] * (S.char.blastMult || 1));
-        return { txt: "คุณไม่ทันขยับตัว แสงสาดเข้าตาเต็มที่", d: { hp: -dmg, hope: -5, cause: "blast" } };
+        if (S.bf <= 0.15) return { txt: "คุณค้างมองลูกไฟที่ขอบฟ้าอย่างลืมตัว ไม่มีอันตรายใดมาถึงคุณ แต่ใจคุณหล่นลงไปอยู่ที่ปลายเท้า", d: { hope: -5 } };
+        var dmg = Math.round({ deep: 10, mid: 10, weak: 45 }[S.f.shelter] * S.bf);
+        return { txt: "คุณไม่ทันขยับตัว แสงสาดเข้าตาเต็มที่", d: { hp: -dmg, hope: -5, cause: "blast" }, set: { injury: dmg >= 20 ? 1 : 0 } };
       } }
     },
     {
-      when: "วันที่ 0 · 09:30", place: "ที่หลบภัย", day: 0,
+      when: "วันที่ 0 · 09:30", place: "ที่หลบภัย", day: 0, art: "ash",
+      onEnter: function () { S.f.plume = S.inPlume ? 1 : 0; },
+      extra: function () { return mapSvg(true); },
       text: function () {
         var where = { deep: "ที่หลบใต้ดินมืดสนิท มีแต่เสียงหายใจของคนที่เหลืออยู่", mid: "ที่หลบแออัดและมืด มีแต่ไฟฉุกเฉินสีแดง ผู้คนนั่งกอดเข่ากันเงียบ ๆ", weak: "ที่กำบังบาง ๆ เต็มไปด้วยเศษซากและฝุ่น ลมร้อนพัดผ่านรอยแตกเข้ามา" }[S.f.shelter];
-        return where + "\n\nข้างนอก ฝุ่นกัมมันตรังสีกำลังตกลงมา คุณจำได้ลาง ๆ ว่า 48 ชั่วโมงแรกอันตรายที่สุด หลังจากนั้นระดับรังสีจะลดลงเร็วมาก";
+        var fall = S.inPlume
+          ? "ลมพัดเถ้ากัมมันตรังสีมาทางที่คุณอยู่ ฝุ่นตกหนักกว่าที่ไหน ๆ เครื่องวัดรังสีของหน่วยกู้ภัยที่ใครสักคนถืออยู่ส่งเสียงถี่จนน่ากลัว"
+          : "ลมพัดฝุ่นไปอีกทาง ฝั่งของคุณยังมีแค่เถ้าบาง ๆ ลอยตก แต่ไม่มีใครบอกได้ว่าลมจะเปลี่ยนทิศเมื่อไหร่";
+        return where + "\n\n" + fall + "\n\nคุณจำได้ลาง ๆ ว่า 48 ชั่วโมงแรกอันตรายที่สุด หลังจากนั้นระดับรังสีจะลดลงเร็วมาก";
       },
       choices: [
         { t: "อยู่ในที่หลบอย่างน้อย 48 ชั่วโมง ประหยัดน้ำให้มากที่สุด", r: function () {
-          return { txt: "สองวันที่ยาวที่สุดในชีวิต คุณนับเสียงหยดน้ำ จดวันบนผนัง และพยายามไม่คิดถึงใคร แต่รังสีข้างนอกลดลงจริง ๆ อย่างที่เคยอ่าน", d: { food: -2, rad: 2, hope: -10 } };
+          var base = { deep: 2, mid: 5, weak: 12 }[S.f.shelter];
+          return { txt: "สองวันที่ยาวที่สุดในชีวิต คุณนับเสียงหยดน้ำ จดวันบนผนัง และพยายามไม่คิดถึงใคร " + (S.inPlume ? "เครื่องวัดรังสียังดังอยู่ข้างนอกตลอดเวลา แต่ผนังที่หนาพอช่วยคุณไว้ได้ส่วนหนึ่ง" : "รังสีข้างนอกลดลงจริง ๆ อย่างที่เคยอ่าน"), d: { food: -2, rad: base, hope: -10 }, log: "หลบอยู่ในที่กำบัง 48 ชั่วโมงเต็ม" };
         } },
         { t: "ออกไปดูข้างนอกว่าเกิดอะไรขึ้น", r: function () {
-          return { txt: "ท้องฟ้าเป็นสีส้มหม่น เถ้าสีเทาตกลงมาเหมือนหิมะ คุณยืนมองอยู่ราวสิบนาทีจนผิวเริ่มแสบ ภาพที่เห็นจะไม่มีวันหายไปจากหัว", d: { rad: 25, hp: -5, hope: -15, cause: "rad" } };
+          return { txt: "ท้องฟ้าเป็นสีส้มหม่น เถ้าสีเทาตกลงมาเหมือนหิมะ คุณยืนมองอยู่ราวสิบนาทีจนผิวเริ่มแสบ" + (S.inPlume ? " ซึ่งน่ากลัวกว่าที่คิด เพราะคุณยืนอยู่กลางแนวฝุ่นพอดี" : "") + " ภาพที่เห็นจะไม่มีวันหายไปจากหัว", d: { rad: 25, hp: -5, hope: -15, cause: "rad" }, log: "ออกไปดูข้างนอกทั้งที่รู้ว่าฝุ่นกำลังตก" };
         } },
         { t: function () { return S.f.shelter === "weak" ? "ค้นของรอบตัว หาของที่ยังใช้ได้" : "แอบกลับไปที่เดิมเอาชุดปฐมพยาบาลกับวิทยุไขลานมา"; }, r: function () {
           return { txt: S.f.shelter === "weak" ? "คุณเจอชุดปฐมพยาบาลและวิทยุไขลานที่ใครสักคนซื้อเก็บไว้ตั้งแต่ตอนน้ำท่วมปี 54 ตอนนั้นคุณหัวเราะ ตอนนี้คุณขอบคุณ" : "คุณคลุมหน้าด้วยผ้าเปียกแล้วออกไปหาของอยู่ราวสิบนาที ได้ชุดปฐมพยาบาลกับวิทยุไขลานกลับมา แลกกับฝุ่นที่ติดเสื้อมาด้วย", d: { rad: S.f.shelter === "weak" ? 3 : 10, hope: 5 }, set: { kit: 1, radio: 1 } };
@@ -421,25 +635,25 @@ main { padding-top: 22px; }
       ]
     },
     {
-      when: "วันที่ 1 · 22:10", place: "ที่หลบภัย", day: 1,
+      when: "วันที่ 1 · 22:10", place: "ที่หลบภัย", day: 1, art: "door",
       text: function () {
         return "เสียงเคาะเบา ๆ ดังขึ้นตอนดึก\n\nเด็กหญิงอายุราว 8 ขวบ กับพ่อที่ขาบวมช้ำเดินไม่ไหว ยืนอยู่หน้าทางเข้า เด็กถามเสียงสั่นว่ามีน้ำเหลือไหม";
       },
       choices: [
         { t: "เปิดให้เข้ามา แบ่งน้ำและอาหารให้", r: function () {
-          return { txt: "พ่อพูดคำว่าขอบคุณซ้ำอยู่ห้าครั้ง เด็กหลับในอ้อมแขนคุณก่อนจะกินขนมปังหมด ที่หลบภัยไม่ได้เงียบอีกต่อไป และบางทีมันก็ดี", d: { food: -2, hope: 20 }, set: { ally: 1 } };
+          return { txt: "พ่อพูดคำว่าขอบคุณซ้ำอยู่ห้าครั้ง เด็กหลับในอ้อมแขนคุณก่อนจะกินขนมปังหมด ที่หลบภัยไม่ได้เงียบอีกต่อไป และบางทีมันก็ดี", d: { food: -2, hope: 20 }, set: { ally: 1 }, k: 1, log: "เปิดประตูให้เด็กหญิงกับพ่อเข้ามาหลบ" };
         } },
         { t: "ตะโกนบอกว่าไม่มีที่แล้ว", r: function () {
-          return { txt: "เสียงฝีเท้าเด็กค่อย ๆ หายไปในความมืด คุณบอกตัวเองว่ามันจำเป็น แล้วนอนไม่หลับจนเช้า", d: { hope: -25 } };
+          return { txt: "เสียงฝีเท้าเด็กค่อย ๆ หายไปในความมืด คุณบอกตัวเองว่ามันจำเป็น แล้วนอนไม่หลับจนเช้า", d: { hope: -25 }, k: -1, log: "ไล่เด็กหญิงกับพ่อออกไปจากประตู" };
         } },
         { t: "ยื่นน้ำหนึ่งขวดผ่านช่องประตู แต่ไม่ให้เข้า", r: function () {
-          return { txt: "มือเล็ก ๆ รับขวดน้ำไปโดยไม่พูดอะไร คุณไม่รู้ว่านี่คือความใจดีหรือขี้ขลาดกันแน่", d: { food: -1, hope: -5 } };
+          return { txt: "มือเล็ก ๆ รับขวดน้ำไปโดยไม่พูดอะไร คุณไม่รู้ว่านี่คือความใจดีหรือขี้ขลาดกันแน่", d: { food: -1, hope: -5 }, log: "ยื่นน้ำผ่านช่องประตู แต่ไม่ให้เข้า" };
         } }
       ]
     },
     { pick: true },
     {
-      when: "วันที่ 3 · 06:00", place: "ที่หลบภัย", day: 3,
+      when: "วันที่ 3 · 06:00", place: "ที่หลบภัย", day: 3, art: "radio",
       text: function () {
         return "ผ่านมา 48 ชั่วโมงแล้ว ข้างนอกยังเงียบกริบ น้ำและอาหารของคุณลดลงเรื่อย ๆ" + (S.f.ally ? " เด็กน้อยถามซ้ำ ๆ ว่าเมื่อไหร่แม่จะมารับ" : "") + "\n\nถึงเวลาตัดสินใจว่าจะใช้วันนี้ทำอะไร";
       },
@@ -456,21 +670,24 @@ main { padding-top: 22px; }
       ]
     },
     {
-      when: "วันที่ 4 · 14:20", place: "ที่หลบภัย", day: 4,
+      when: "วันที่ 4 · 14:20", place: "ที่หลบภัย", day: 4, art: "trefoil",
       text: function () {
-        return S.rad >= 35
+        return (S.rad >= 35
           ? "คุณตื่นมาพร้อมอาการคลื่นไส้ ปวดหัวรุนแรง และผมติดมือเป็นกระจุกตอนยีหัว นี่คืออาการเริ่มต้นของการได้รับรังสี"
-          : "คุณปวดหัวตุบ ๆ และท้องเสียตั้งแต่เช้า อาจเป็นเพราะความเครียดหรือน้ำที่ไม่สะอาด แต่ไม่มีใครบอกได้ว่ามันคืออะไรกันแน่";
+          : "คุณปวดหัวตุบ ๆ และท้องเสียตั้งแต่เช้า อาจเป็นเพราะความเครียดหรือน้ำที่ไม่สะอาด แต่ไม่มีใครบอกได้ว่ามันคืออะไรกันแน่") +
+          (S.f.injury ? "\n\nแผลที่ได้ตอนระเบิดเริ่มบวมแดงและมีกลิ่น ถ้าไม่ได้รับการดูแลอาจติดเชื้อ" : "");
       },
       choices: [
         { t: "ใช้ชุดปฐมพยาบาล ดื่มเกลือแร่ แล้วนอนพัก", lock: function () { return S.f.kit ? null : "ต้องมีชุดปฐมพยาบาล"; }, r: function () {
-          return { txt: "เกลือแร่กับยาแก้อาเจียนเอาอยู่ ชีพจรคุณนิ่งขึ้น คุณขอบคุณตัวเองที่ยอมเสี่ยงขึ้นไปเอามันมา", d: { hp: 20, food: -1, hope: 5 } };
+          return { txt: "เกลือแร่กับยาแก้อาเจียนเอาอยู่ " + (S.f.injury ? "คุณล้างแผลและพันผ้าใหม่จนหนองหยุดไหล " : "") + "ชีพจรคุณนิ่งขึ้น คุณขอบคุณตัวเองที่ยอมเสี่ยงไปเอามันมา", d: { hp: S.f.injury ? 30 : 20, food: -1, hope: 5 }, set: { injury: 0 } };
         } },
         { t: "ถอดเสื้อผ้าชั้นนอกที่ติดฝุ่นทิ้ง อาบน้ำและล้างผมให้สะอาด", r: function () {
           return { txt: "ฝุ่นที่ติดตัวคือแหล่งรังสีที่ยังอยู่กับคุณทุกวินาที คุณมัดเสื้อผ้าทิ้งไว้ไกล ๆ แล้วถูตัวจนผิวแดง รู้สึกเบาขึ้นทันที", d: { rad: -8, hope: -5 } };
         } },
         { t: "นอนพักเฉย ๆ ไม่ทำอะไรทั้งนั้น", r: function () {
-          return { txt: "อาการไม่ดีขึ้นแต่ก็ไม่แย่ไปกว่านี้ คุณได้แค่ดื่มน้ำและรอ", d: { hp: 5, food: -1 } };
+          return S.f.injury
+            ? { txt: "คุณนอนนิ่ง ๆ แต่แผลไม่ได้รอ ไข้เริ่มขึ้นช้า ๆ โดยไม่มียาหรือผ้าสะอาดช่วยอะไรได้", d: { hp: -8, food: -1, cause: "starve" } }
+            : { txt: "อาการไม่ดีขึ้นแต่ก็ไม่แย่ไปกว่านี้ คุณได้แค่ดื่มน้ำและรอ", d: { hp: 5, food: -1 } };
         } },
         { t: "ฝืนลุกขึ้นไปทำงานต่อ ไม่อยากเสียเวลา", r: function () {
           return { txt: "คุณฝืนตัวเองไปได้ครึ่งวันก่อนจะทรุดลงกลางทาง ความเหนื่อยทำให้คุณแย่กว่าเดิม", d: { hp: -12, food: -1, cause: "starve" } };
@@ -478,17 +695,17 @@ main { padding-top: 22px; }
       ]
     },
     {
-      when: "วันที่ 6 · 05:30", place: "หน้าทางออกที่หลบภัย", day: 6,
+      when: "วันที่ 6 · 05:30", place: "หน้าทางออกที่หลบภัย", day: 6, art: "road",
       text: function () {
         return (S.f.knows
           ? "วิทยุยังเตือนซ้ำ ๆ ว่าศูนย์พักพิงจะเปิดรับถึงวันที่ 10 ห่างไป " + S.char.dist + " กิโลเมตร" + S.char.dir + " ถนนเต็มไปด้วยซากรถ" + (S.f.bike ? " แต่มอเตอร์ไซค์ของคุณยังลอดผ่านได้" : " ต้องเดินเท้า")
-          : "คุณไม่มีข้อมูลจากทางการ เห็นแต่ป้ายอพยพที่ใครสักคนพ่นสีไว้ชี้ไปทางเหนือ")
+          : "คุณไม่มีข้อมูลจากทางการ เห็นแต่ป้ายอพยพที่ใครสักคนพ่นสีไว้ชี้ไป" + S.char.dir)
           + "\n\nเสบียงที่เหลือพอสำหรับราว " + S.food + " วัน คุณต้องเลือกว่าจะไปหรืออยู่";
       },
       choices: [
-        { t: function () { return S.f.knows ? "ออกเดินทางไปศูนย์พักพิงทางเหนือ" : "เดินตามป้ายอพยพขึ้นเหนือ (ไม่แน่ใจว่าปลายทางมีอะไร)"; }, r: function () {
+        { t: function () { return S.f.knows ? "ออกเดินทางไปศูนย์พักพิง" + S.char.dir : "เดินตามป้ายอพยพไป" + S.char.dir + " (ไม่แน่ใจว่าปลายทางมีอะไร)"; }, r: function () {
           var dist = S.char.dist, cost = Math.max(1, (dist >= 100 ? 4 : dist >= 55 ? 3 : 2) - (S.f.filter ? 1 : 0) - (S.f.bike ? 1 : 0));
-          return { txt: (S.f.bike ? "คุณขี่มอเตอร์ไซค์ซิกแซกผ่านซากรถที่ไม่มีใครขยับมาหลายวัน น้ำมันเหลือน้อยกว่าที่คิด แต่ระยะทางหดลงเร็วกว่าเดินเท้ามาก" : "หลายวันบนถนนที่เงียบสนิท คุณเดินผ่านรถที่คนยังนั่งอยู่ในนั้น และพยายามไม่หันไปมอง เท้าพองหมด") + " ก่อนจะเห็นควันจากปล่องไกลออกไป", d: { food: -cost, rad: 8, hp: S.f.bike ? -3 : -10, cause: "starve" }, set: { route: "go" } };
+          return { txt: (S.f.bike ? "คุณขี่มอเตอร์ไซค์ซิกแซกผ่านซากรถที่ไม่มีใครขยับมาหลายวัน น้ำมันเหลือน้อยกว่าที่คิด แต่ระยะทางหดลงเร็วกว่าเดินเท้ามาก" : "หลายวันบนถนนที่เงียบสนิท คุณเดินผ่านรถที่คนยังนั่งอยู่ในนั้น และพยายามไม่หันไปมอง เท้าพองหมด") + " ก่อนจะเห็นควันจากปล่องไกลออกไป", d: { food: -cost, rad: 8, hp: (S.f.bike ? -3 : -10) - (S.f.injury ? 5 : 0), cause: "starve" }, set: { route: "go" } };
         } },
         { t: "ปักหลักอยู่ที่เดิม ต้มน้ำ กรองน้ำ และหาของกินเท่าที่หาได้", r: function () {
           var farm = S.f.farm;
@@ -497,21 +714,26 @@ main { padding-top: 22px; }
       ]
     },
     {
-      when: "วันที่ 7 · 11:05", place: "ระหว่างทาง", day: 7, timer: 14,
+      when: "วันที่ 7 · 11:05", place: "ระหว่างทาง", day: 7, timer: 14, art: "gang",
       text: function () {
-        return S.f.route === "go"
+        return (S.f.route === "go"
           ? "ชายสามคนถือท่อนเหล็กยืนขวางถนนอยู่เบื้องหน้า คนหนึ่งตะโกนว่า \"วางของไว้ แล้วไปได้\""
-          : "ชายสามคนเดินเข้ามาที่ที่หลบภัยของคุณ เห็นแสงตะเกียงจากข้างนอก คนหนึ่งยิ้มแต่ตาไม่ยิ้มด้วย";
+          : "ชายสามคนเดินเข้ามาที่ที่หลบภัยของคุณ เห็นแสงตะเกียงจากข้างนอก คนหนึ่งยิ้มแต่ตาไม่ยิ้มด้วย") +
+          (S.karma >= 2 ? "\n\nคนที่ยืนทางซ้ายมองหน้าคุณนานกว่าคนอื่น เหมือนเขากำลังนึกถึงอะไรบางอย่างที่ได้ยินมา" : S.karma <= -2 ? "\n\nเสียงพึมพำในกลุ่มพูดถึง \"คนที่ไม่เคยแบ่งใคร\" ดูเหมือนข่าวของคุณจะมาถึงก่อนตัวคุณแล้ว" : "");
       },
       choices: [
         { t: "แบ่งเสบียงครึ่งหนึ่งให้ แลกกับความปลอดภัย", r: function () {
+          if (S.karma <= -2) return { txt: "\"ครึ่งเดียวไม่พอหรอก คนอย่างแกไม่เคยแบ่งใคร\" พวกเขาดึงกระเป๋าไปทั้งใบ แล้วเดินจากไปโดยไม่ทำร้ายคุณ", d: { food: -S.food, hope: -10 }, log: "ถูกชายสามคนยึดเสบียงทั้งหมด เพราะชื่อเสียงที่ไม่เคยแบ่งใคร" };
           var give = Math.ceil(S.food / 2);
-          return { txt: "พวกเขารับของไปโดยไม่พูดอะไรสักคำ แล้วเดินจากไป คุณยืนสั่นอยู่พักใหญ่ แต่ไม่มีใครเจ็บ", d: { food: -give, hope: -5 } };
+          return { txt: "พวกเขารับของไปโดยไม่พูดอะไรสักคำ แล้วเดินจากไป คุณยืนสั่นอยู่พักใหญ่ แต่ไม่มีใครเจ็บ", d: { food: -give, hope: -5 }, log: "แบ่งเสบียงครึ่งหนึ่งให้ชายสามคนที่ขวางทาง" };
         } },
         { t: "สู้กลับ", r: function () {
           return S.hp >= (S.f.dog ? 45 : 60)
-            ? { txt: (S.f.dog ? "สุนัขที่ตามคุณมาพุ่งเข้าใส่ขาคนแรกพร้อมเสียงเห่าลั่น " : "") + "คุณฟาดไปที่หัวเข่าคนแรก แล้วโวยเสียงดังพอให้ทั้งกลุ่มถอย คุณชนะ แต่ฝ่ามือคุณสั่นอยู่นานหลังจากนั้น", d: { hp: -20, hope: -5, cause: "violence" } }
-            : { txt: "ร่างกายคุณอ่อนล้าเกินกว่าจะสู้ พวกเขาล้มคุณลงกับพื้น แล้วเอาทุกอย่างในกระเป๋าไปจนหมด", d: { hp: -50, food: -S.food, hope: -15, cause: "violence" } };
+            ? { txt: (S.f.dog ? "สุนัขที่ตามคุณมาพุ่งเข้าใส่ขาคนแรกพร้อมเสียงเห่าลั่น " : "") + "คุณฟาดไปที่หัวเข่าคนแรก แล้วโวยเสียงดังพอให้ทั้งกลุ่มถอย คุณชนะ แต่ฝ่ามือคุณสั่นอยู่นานหลังจากนั้น", d: { hp: -20, hope: -5, cause: "violence" }, k: -1, log: "สู้กับชายสามคนจนพวกเขาถอย" }
+            : { txt: "ร่างกายคุณอ่อนล้าเกินกว่าจะสู้ พวกเขาล้มคุณลงกับพื้น แล้วเอาทุกอย่างในกระเป๋าไปจนหมด", d: { hp: -50, food: -S.food, hope: -15, cause: "violence" }, k: -1, log: "สู้กับชายสามคนทั้งที่ร่างกายไม่ไหว" };
+        } },
+        { t: "ขอให้พวกเขานึกถึงความดีที่คุณเคยทำ", lock: function () { return S.karma >= 2 ? null : "ยังไม่มีใครรู้จักความดีของคุณ"; }, r: function () {
+          return { txt: "\"เมื่อสองคืนก่อน ญาติฉันคนหนึ่งได้น้ำจากคนที่เล่าให้ฟัง รูปร่างเหมือนแก\" ชายคนซ้ายพูดแล้วลดท่อนเหล็กลง พวกเขาหลีกทางให้ และคนหนึ่งยื่นข้าวสารถุงเล็กมาให้คุณเพื่อตอบแทน", d: { food: 1, hope: 12 }, log: "ความดีที่คุณเคยทำกลับมาเปิดทางให้คุณผ่านไปได้" };
         } },
         { t: "หลบซ่อน ปล่อยให้เขาเดินผ่านไป", r: function () {
           return S.f.ally
@@ -519,13 +741,13 @@ main { padding-top: 22px; }
             : { txt: "คุณกลั้นหายใจอยู่หลังเสาจนเสียงฝีเท้าหายไป ฝุ่นที่ซุกอยู่ทำให้ปอดคุณแสบ แต่ไม่มีใครรู้ว่าคุณอยู่ตรงนั้น", d: { rad: 5, hope: -3 } };
         } },
         { t: "ให้พ่อของเด็กออกไปเจรจา (เขาเคยเป็นอาสาสมัครกู้ภัย)", lock: function () { return S.f.ally ? null : "คุณไม่มีใครช่วยพูดแทน"; }, r: function () {
-          return { txt: "ชายขาเจ็บเดินออกไปช้า ๆ ยกสองมือขึ้น แล้วพูดด้วยน้ำเสียงของคนที่เคยเจอเรื่องหนักกว่านี้มาแล้ว ท่อนเหล็กค่อย ๆ ลดลง พวกเขาเดินจากไปโดยไม่มีใครบาดเจ็บ ความใจดีที่คุณให้ไว้คืนนั้นกลับมาหาคุณ", d: { hope: 10 } };
+          return { txt: "ชายขาเจ็บเดินออกไปช้า ๆ ยกสองมือขึ้น แล้วพูดด้วยน้ำเสียงของคนที่เคยเจอเรื่องหนักกว่านี้มาแล้ว ท่อนเหล็กค่อย ๆ ลดลง พวกเขาเดินจากไปโดยไม่มีใครบาดเจ็บ ความใจดีที่คุณให้ไว้คืนนั้นกลับมาหาคุณ", d: { hope: 10 }, log: "พ่อของเด็กที่คุณเคยช่วยไว้ ออกไปเจรจาแทนคุณ" };
         } },
         { t: "ยื่นทองคำที่มีให้ แลกกับการผ่านไปโดยไม่เจ็บตัว", lock: function () { return S.f.gold ? null : "คุณไม่มีของมีค่าติดตัว"; }, r: function () {
-          return { txt: "หัวหน้ากลุ่มชั่งน้ำหนักทองในมือนาน ๆ แล้วหัวเราะแห้ง ๆ \"กินมันไม่ได้หรอก แต่ก็ดี\" พวกเขาเดินจากไป คุณเสียของที่เคยมีค่าที่สุดไป แต่เสียแค่นั้น", d: { hope: -3 }, set: { gold: 0 } };
+          return { txt: "หัวหน้ากลุ่มชั่งน้ำหนักทองในมือนาน ๆ แล้วหัวเราะแห้ง ๆ \"กินมันไม่ได้หรอก แต่ก็ดี\" พวกเขาเดินจากไป คุณเสียของที่เคยมีค่าที่สุดไป แต่เสียแค่นั้น", d: { hope: -3 }, set: { gold: 0 }, log: "ใช้ทองคำแลกทางผ่านชายสามคน" };
         } },
         { t: "ชวนพวกเขาไปด้วยกัน \"คนเดียวไม่รอดหรอก\"", lock: function () { var need = S.char.social ? 30 : 45; return S.hope >= need ? null : "ขวัญกำลังใจต่ำเกินไป คุณยังไว้ใจใครไม่ได้"; }, r: function () {
-          return { txt: "ผ่านความเงียบยาวนานสักพัก ชายคนหนึ่งลดท่อนเหล็กลง \"ก็ได้ แต่พวกเราหิวมาสามวันแล้ว\" คุณแบ่งอาหารให้ทุกคน และไม่ได้เดินทางคนเดียวอีกต่อไป", d: { food: -2, hope: 15 }, set: { group: 1 } };
+          return { txt: "ผ่านความเงียบยาวนานสักพัก ชายคนหนึ่งลดท่อนเหล็กลง \"ก็ได้ แต่พวกเราหิวมาสามวันแล้ว\" คุณแบ่งอาหารให้ทุกคน และไม่ได้เดินทางคนเดียวอีกต่อไป", d: { food: -2, hope: 15 }, set: { group: 1 }, k: 1, log: "ชวนชายสามคนมาเดินทางด้วยกัน" };
         } }
       ],
       timeout: { t: "ค้างอยู่กับที่", r: function () {
@@ -533,7 +755,7 @@ main { padding-top: 22px; }
       } }
     },
     {
-      when: "วันที่ 10 · 16:40", place: "ปลายทาง", day: 10,
+      when: "วันที่ 10 · 16:40", place: "ปลายทาง", day: 10, art: function () { return S.f.route === "go" ? "camp" : "home"; },
       text: function () {
         var left = "เสบียงของคุณเหลือราว " + S.food + " วัน";
         return (S.f.route === "go"
@@ -543,10 +765,10 @@ main { padding-top: 22px; }
       },
       choices: [
         { t: "ส่งเสบียงที่เหลือเข้าส่วนกลาง", r: function () {
-          return { txt: "มีเสียงตะโกนว่าขอบคุณจากใครสักคนที่คุณไม่รู้จัก ถ้าทุกคนยังต้องอยู่ต่อ ก็ควรมีใครสักคนเริ่มก่อน", d: { food: -S.food, hope: 15 }, set: { shared: 1 } };
+          return { txt: "มีเสียงตะโกนว่าขอบคุณจากใครสักคนที่คุณไม่รู้จัก ถ้าทุกคนยังต้องอยู่ต่อ ก็ควรมีใครสักคนเริ่มก่อน", d: { food: -S.food, hope: 15 }, set: { shared: 1 }, k: 2, log: "ส่งเสบียงที่เหลือทั้งหมดเข้าส่วนกลาง" };
         } },
         { t: "เก็บไว้ให้ตัวเอง", r: function () {
-          return { txt: "คุณกอดกระเป๋าไว้แน่น ไม่มีใครว่าอะไร แต่สายตาของคนรอบข้างไม่เหมือนเดิมแล้ว", d: { hope: -10 }, set: { kept: 1 } };
+          return { txt: "คุณกอดกระเป๋าไว้แน่น ไม่มีใครว่าอะไร แต่สายตาของคนรอบข้างไม่เหมือนเดิมแล้ว", d: { hope: -10 }, set: { kept: 1 }, k: -2, log: "เก็บเสบียงที่เหลือไว้คนเดียว" };
         } }
       ]
     }
@@ -669,11 +891,53 @@ main { padding-top: 22px; }
     }
   ];
 
+  /* gz = km from the nearest strike, bearing = where you are from it (0 = north), type = what surrounds you */
+  var GEO = {
+    napat: { gz: 2.5, bearing: 200, type: "urban", gzName: "ใจกลางกรุงเทพฯ" },
+    sommai: { gz: 4.5, bearing: 115, type: "urban", gzName: "ใจกลางกรุงเทพฯ" },
+    theerapat: { gz: 17, bearing: 350, type: "urban", gzName: "ใจกลางกรุงเทพฯ" },
+    fasai: { gz: 5, bearing: 30, type: "urban", gzName: "ใจกลางเมืองเชียงใหม่" },
+    kaew: { gz: 8, bearing: 255, type: "urban", gzName: "ใจกลางเมืองภูเก็ต" },
+    mali: { gz: 14, bearing: 65, type: "urban", gzName: "ใจกลางเมืองขอนแก่น" },
+    somsak: { gz: 28, bearing: 5, type: "rural", gzName: "ตัวเมืองลพบุรี" },
+    ade: { gz: 180, bearing: 275, type: "remote", gzName: "ใจกลางเมืองเชียงใหม่" }
+  };
+  CHARS.forEach(function (c) { var g = GEO[c.id]; for (var k in g) c[k] = g[k]; });
+
+  var LOOK = {
+    napat: { skin: "#e3b48c", hair: "#1c1410", cloth: "#4a6a8a", acc: "bun" },
+    somsak: { skin: "#b98458", hair: "#6b6b6b", cloth: "#5a6b3a", acc: "ngob" },
+    fasai: { skin: "#ecc29c", hair: "#1c1410", cloth: "#2c3f6b", acc: "bob" },
+    sommai: { skin: "#c98f62", hair: "#1c1410", cloth: "#e8742a", acc: "helmet" },
+    theerapat: { skin: "#e0ae86", hair: "#2a2a2a", cloth: "#2b2f36", acc: "glasses" },
+    kaew: { skin: "#dca77d", hair: "#1c1410", cloth: "#7a2f3d", acc: "tagbun" },
+    mali: { skin: "#e8bd97", hair: "#2a1a14", cloth: "#7a4d8a", acc: "flower" },
+    ade: { skin: "#b9814f", hair: "#17141a", cloth: "#3a5a7a", acc: "akha" }
+  };
+  function avatar(c) {
+    var l = LOOK[c.id], o = '<circle cx="32" cy="32" r="32" class="f-far"/>';
+    o += '<path d="M6 64 Q9 44 32 42 Q55 44 58 64z" fill="' + l.cloth + '"/>';
+    o += '<rect x="28" y="34" width="8" height="9" fill="' + l.skin + '"/>';
+    o += '<circle cx="32" cy="27" r="11" fill="' + l.skin + '"/>';
+    switch (l.acc) {
+      case "bun": o += '<path d="M20 27 Q20 13 32 13 Q44 13 44 27 Q40 19 32 19 Q24 19 20 27z" fill="' + l.hair + '"/><circle cx="32" cy="10" r="5" fill="' + l.hair + '"/>'; break;
+      case "ngob": o += '<path d="M10 22 L32 3 L54 22z" fill="#c9a24b"/><path d="M12 22 H52" stroke="#8a6a25" stroke-width="2"/>'; break;
+      case "bob": o += '<path d="M19 33 Q16 12 32 13 Q48 12 45 33 L41 33 Q41 21 32 21 Q23 21 23 33z" fill="' + l.hair + '"/><path d="M24 43 L32 53 L40 43z" fill="#f3f1e6"/>'; break;
+      case "helmet": o += '<path d="M19 26 Q19 11 32 11 Q45 11 45 26z" fill="#e8742a"/><rect x="18" y="25" width="28" height="3" fill="#b85a1c"/>'; break;
+      case "glasses": o += '<path d="M21 24 Q22 13 32 13 Q42 13 43 24 Q38 18 32 18 Q26 18 21 24z" fill="' + l.hair + '"/><circle cx="27" cy="27" r="3.6" fill="none" stroke="#1a1a1a" stroke-width="1.2"/><circle cx="37" cy="27" r="3.6" fill="none" stroke="#1a1a1a" stroke-width="1.2"/><path d="M30.6 27 h2.8" stroke="#1a1a1a" stroke-width="1.2"/>'; break;
+      case "tagbun": o += '<path d="M20 27 Q20 13 32 13 Q44 13 44 27 Q40 19 32 19 Q24 19 20 27z" fill="' + l.hair + '"/><circle cx="32" cy="10" r="5" fill="' + l.hair + '"/><rect x="38" y="48" width="12" height="6" fill="#f3f1e6"/>'; break;
+      case "flower": o += '<path d="M19 28 Q17 11 32 11 Q47 11 45 28 L48 46 L41 41 L41 27 Q41 19 32 19 Q23 19 23 27 L23 41 L16 46z" fill="' + l.hair + '"/><circle cx="40" cy="19" r="3.4" fill="#e86a8a"/><circle cx="40" cy="19" r="1.2" fill="#f6d36a"/>'; break;
+      case "akha": o += '<rect x="19" y="7" width="26" height="13" rx="3" fill="#1b1b2b"/>' + [24, 30, 36, 42].map(function (x) { return '<circle cx="' + x + '" cy="13" r="2" fill="#cfd3d8"/>'; }).join("") + '<rect x="19" y="19" width="26" height="3" fill="#c43d3d"/><path d="M21 22 Q20 30 22 32 M43 22 Q44 30 42 32" stroke="' + l.hair + '" stroke-width="3" fill="none"/>'; break;
+    }
+    o += '<circle cx="28" cy="28" r="1.3" fill="#1a1a1a"/><circle cx="36" cy="28" r="1.3" fill="#1a1a1a"/><path d="M29 33 q3 2 6 0" stroke="#7a3b2e" stroke-width="1.2" fill="none"/>';
+    return '<svg class="avatar" viewBox="0 0 64 64" role="img" aria-label="' + c.name + '">' + o + "</svg>";
+  }
+
   /* one of these is drawn at random each run, so no two playthroughs match */
-  var ITEMS = [["bike", "มอเตอร์ไซค์"], ["gold", "ทองคำ"], ["farm", "ที่ดินทำกิน"], ["radio", "วิทยุไขลาน"], ["kit", "ชุดปฐมพยาบาล"], ["filter", "ชุดกรองน้ำ"], ["ally", "เด็กหญิงกับพ่อ"], ["dog", "สุนัขจร"], ["group", "ชายแปลกหน้า 3 คน"]];
+  var ITEMS = [["plume", "อยู่ในแนวฝุ่นรังสี", "bad"], ["injury", "บาดเจ็บ", "bad"], ["bike", "มอเตอร์ไซค์"], ["gold", "ทองคำ"], ["farm", "ที่ดินทำกิน"], ["radio", "วิทยุไขลาน"], ["kit", "ชุดปฐมพยาบาล"], ["filter", "ชุดกรองน้ำ"], ["ally", "เด็กหญิงกับพ่อ"], ["dog", "สุนัขจร"], ["group", "ชายแปลกหน้า 3 คน"]];
   var EVENTS = [
     {
-      when: "วันที่ 2 · 15:20", place: "ที่หลบภัย", day: 2,
+      when: "วันที่ 2 · 15:20", place: "ที่หลบภัย", day: 2, art: "rain",
       text: function () { return "เสียงเม็ดฝนกระทบปล่องระบายอากาศ ข้างนอกฝนตกแล้ว แต่น้ำที่ไหลเป็นทางตามถนนมีสีเทาดำ\n\nน้ำของคุณลดลงทุกวัน ส่วนฝนนี้อาจพาฝุ่นรังสีลงมาด้วย"; },
       choices: [
         { t: "รองน้ำฝนไว้ดื่ม ต้มก่อนก็น่าจะพอ", r: function () {
@@ -688,29 +952,29 @@ main { padding-top: 22px; }
       ]
     },
     {
-      when: "วันที่ 2 · 20:45", place: "ปากทางเข้า", day: 2,
+      when: "วันที่ 2 · 20:45", place: "ปากทางเข้า", day: 2, art: "wounded",
       text: function () { return "มีเสียงล้มดังตุ้บที่ปากทางเข้า ชายคนหนึ่งผิวไหม้ลอกเป็นแผ่นนอนอยู่ตรงนั้น เขาพึมพำขอน้ำด้วยเสียงแหบแห้ง\n\nเขายังหายใจอยู่ แต่ไม่รู้ว่าจะอยู่ได้อีกนานแค่ไหน"; },
       choices: [
         { t: "ใช้ชุดปฐมพยาบาลทำแผลให้เขา", lock: function () { return S.f.kit ? null : "ต้องมีชุดปฐมพยาบาล"; }, r: function () {
-          return { txt: "คุณล้างแผลและพันผ้าให้เท่าที่มี เขาจับมือคุณไว้แล้วหลับไป เช้าวันถัดมา ที่นอนของเขาว่างเปล่า แต่มีขวดน้ำสองใบวางไว้ให้คุณ", d: { hope: 15, food: 2 } };
+          return { txt: "คุณล้างแผลและพันผ้าให้เท่าที่มี เขาจับมือคุณไว้แล้วหลับไป เช้าวันถัดมา ที่นอนของเขาว่างเปล่า แต่มีขวดน้ำสองใบวางไว้ให้คุณ", d: { hope: 15, food: 2 }, k: 1, log: "ทำแผลให้ชายที่ผิวไหม้ด้วยชุดปฐมพยาบาลของคุณ" };
         } },
         { t: "ลากเข้ามาข้างใน ให้น้ำและพักอยู่กับคุณคืนหนึ่ง", r: function () {
-          return { txt: "คุณแบ่งน้ำให้เขาและนั่งเฝ้า ผิวเขาเปื้อนฝุ่นจนคุณต้องล้างมือหลายรอบ เช้าวันถัดมาเขาลุกเดินไปเงียบ ๆ ก่อนที่จะรู้ว่าชื่ออะไร", d: { food: -1, hope: 10, rad: 5, hp: -3, cause: "rad" } };
+          return { txt: "คุณแบ่งน้ำให้เขาและนั่งเฝ้า ผิวเขาเปื้อนฝุ่นจนคุณต้องล้างมือหลายรอบ เช้าวันถัดมาเขาลุกเดินไปเงียบ ๆ ก่อนที่จะรู้ว่าชื่ออะไร", d: { food: -1, hope: 10, rad: 5, hp: -3, cause: "rad" }, k: 1, log: "ลากชายที่ผิวไหม้เข้ามาพักและแบ่งน้ำให้" };
         } },
         { t: "ปิดประตู ไม่ยุ่ง", r: function () {
-          return { txt: "คุณยืนหลังบานประตูเหล็กจนเสียงคราง ๆ ข้างนอกหายไป คุณบอกตัวเองว่าไม่มีทางเลือกอื่น และจะไม่พูดถึงมันอีก", d: { hope: -15 } };
+          return { txt: "คุณยืนหลังบานประตูเหล็กจนเสียงคราง ๆ ข้างนอกหายไป คุณบอกตัวเองว่าไม่มีทางเลือกอื่น และจะไม่พูดถึงมันอีก", d: { hope: -15 }, k: -1, log: "ปิดประตูใส่ชายที่ผิวไหม้" };
         } }
       ]
     },
     {
-      when: "วันที่ 2 · 09:10", place: "ที่หลบภัย", day: 2,
+      when: "วันที่ 2 · 09:10", place: "ที่หลบภัย", day: 2, art: "dog",
       text: function () { return "มีบางอย่างขยับอยู่หลังกองลังกระดาษ สุนัขจรตัวผอมโซ ขนสกปรกเป็นหย่อม ๆ กำลังมองคุณด้วยตาที่ไม่ไว้ใจเท่าไร\n\nมันดูเหมือนไม่ได้กินอะไรมาหลายวัน"; },
       choices: [
         { t: "แบ่งอาหารหนึ่งวันให้มันกิน", r: function () {
-          return { txt: "มันกินเร็วจนคุณกลัวว่ามันจะสำลัก แล้วมานั่งข้างเท้าคุณโดยไม่ได้ขออะไรเพิ่ม เป็นครั้งแรกในรอบหลายวันที่คุณรู้สึกว่าไม่ได้อยู่คนเดียว", d: { food: -1, hope: 15 }, set: { dog: 1 } };
+          return { txt: "มันกินเร็วจนคุณกลัวว่ามันจะสำลัก แล้วมานั่งข้างเท้าคุณโดยไม่ได้ขออะไรเพิ่ม เป็นครั้งแรกในรอบหลายวันที่คุณรู้สึกว่าไม่ได้อยู่คนเดียว", d: { food: -1, hope: 15 }, set: { dog: 1 }, k: 1, log: "แบ่งอาหารหนึ่งวันให้สุนัขจร" };
         } },
         { t: "ไล่มันไปก่อนที่จะเสียเสบียง", r: function () {
-          return { txt: "มันหายเข้าไปในความมืดโดยไม่ส่งเสียง คุณประหยัดเสบียงไว้ได้ แต่ไม่มีเรื่องอะไรให้ดีใจ", d: { hope: -5 } };
+          return { txt: "มันหายเข้าไปในความมืดโดยไม่ส่งเสียง คุณประหยัดเสบียงไว้ได้ แต่ไม่มีเรื่องอะไรให้ดีใจ", d: { hope: -5 }, k: -1, log: "ไล่สุนัขจรไปเพื่อประหยัดอาหาร" };
         } },
         { t: "ปล่อยไว้ ไม่ยุ่ง", r: function () {
           return { txt: "ทั้งคุณและมันต่างเงียบ ผ่านไปหลายชั่วโมงมันก็หายไปเอง", d: { hope: -3 } };
@@ -718,7 +982,7 @@ main { padding-top: 22px; }
       ]
     },
     {
-      when: "วันที่ 2 · 17:00", place: "ทางเข้าที่หลบภัย", day: 2,
+      when: "วันที่ 2 · 17:00", place: "ทางเข้าที่หลบภัย", day: 2, art: "trader",
       text: function () { return "ชายแปลกหน้าคนหนึ่งสะพายถุงกระสอบและยืนห่างจากประตูพอที่จะไม่ถูกมองว่าคุกคาม ในมือถือชุดกรองน้ำพกพาที่ยังไม่แกะ\n\n\"แลกกับอาหารสองวัน\" เขาพูด \"ฉันไม่มีเวลาต่อรอง\""; },
       choices: [
         { t: "แลกอาหารสองวันกับชุดกรองน้ำ", lock: function () { return S.food >= 2 ? null : "เสบียงไม่พอ (ต้องมีอย่างน้อย 2 วัน)"; }, r: function () {
@@ -729,8 +993,40 @@ main { padding-top: 22px; }
         } },
         { t: "ข่มขู่ ยึดชุดกรองน้ำไปเลย", r: function () {
           return S.hp >= 60
-            ? { txt: "เขาถอยไปก้าวหนึ่ง มองคุณนานแล้ววางของลงโดยไม่พูดอะไร คุณได้ชุดกรองน้ำมา แต่ก็รู้ดีว่าตัวเองเพิ่งทำอะไรลงไป", d: { hope: -15, hp: -10, cause: "violence" }, set: { filter: 1 } }
-            : { txt: "ชายคนนั้นแข็งแรงกว่าที่คุณคิด เขากระชากคุณล้มลงกับพื้นก่อนจะเก็บของเดินจากไป คุณนอนหายใจหอบอยู่หน้าประตู", d: { hp: -30, hope: -10, cause: "violence" } };
+            ? { txt: "เขาถอยไปก้าวหนึ่ง มองคุณนานแล้ววางของลงโดยไม่พูดอะไร คุณได้ชุดกรองน้ำมา แต่ก็รู้ดีว่าตัวเองเพิ่งทำอะไรลงไป", d: { hope: -15, hp: -10, cause: "violence" }, set: { filter: 1 }, k: -1, log: "ข่มขู่ชายคนหนึ่งเพื่อยึดชุดกรองน้ำ" }
+            : { txt: "ชายคนนั้นแข็งแรงกว่าที่คุณคิด เขากระชากคุณล้มลงกับพื้นก่อนจะเก็บของเดินจากไป คุณนอนหายใจหอบอยู่หน้าประตู", d: { hp: -30, hope: -10, cause: "violence" }, k: -1, log: "พยายามข่มขู่พ่อค้าแต่ถูกเขาจัดการคืน" };
+        } }
+      ]
+    },
+    {
+      only: ["urban"],
+      when: "วันที่ 2 · 08:30", place: "ที่หลบภัย", day: 2, art: "tap",
+      text: function () { return "ก๊อกน้ำคายลมเฮือกสุดท้ายแล้วนิ่งสนิท ระบบประปาของเมืองหยุดทำงานตั้งแต่ไฟดับ ถังน้ำที่คุณมีเหลือไม่พอสำหรับอีกสามวัน\n\nในเมืองใหญ่ น้ำคือสิ่งแรกที่ทุกคนจะแย่งกัน"; },
+      choices: [
+        { t: "ปีนขึ้นดาดฟ้าไปเอาน้ำจากถังเก็บน้ำเปิดโล่ง", r: function () {
+          return { txt: "น้ำในถังเต็ม แต่ผิวน้ำมีฝุ่นเถ้าสีเทาลอยเป็นฝ้า คุณตักได้หลายถัง ด้วยความรู้สึกว่าแลกอะไรบางอย่างไป", d: { food: 3, rad: 10, hp: -3 } };
+        } },
+        { t: "กรองน้ำจากถังเก็บน้ำใต้ดินของตึกที่ปิดมิดชิด", r: function () {
+          return { txt: "ถังใต้ดินเก่าและมีกลิ่นสนิม คุณกรองผ่านผ้าและต้มสองรอบ ได้น้ำไม่มากแต่สะอาดกว่า", d: { food: 2, hope: -2, hp: -3 } };
+        } },
+        { t: "ลดการดื่ม ใช้เท่าที่มีไปก่อน", r: function () {
+          return { txt: "คุณเอาแต่ดื่มทีละอึก หัวหมุนจากการขาดน้ำ แต่เสบียงยังไม่หมด", d: { food: -1, hp: -4, cause: "starve" } };
+        } }
+      ]
+    },
+    {
+      only: ["rural", "remote"],
+      when: "วันที่ 2 · 10:00", place: "ทุ่งหน้าบ้าน", day: 2, art: "animal",
+      text: function () { return "ข้างนอกเงียบผิดปกติ วัว ควาย และไก่ที่ปล่อยกินหญ้านอนแน่นิ่งเหมือนหลับ ท้องฟ้าฝั่งนี้ยังฟ้าใส แต่หญ้าทั้งทุ่งขาวด้วยเถ้าบาง ๆ\n\nเสบียงของคุณมีจำกัด และสัตว์เหล่านี้คือเนื้อสดจำนวนมาก"; },
+      choices: [
+        { t: "แล่เนื้อสัตว์ที่ตายมากินเสริมเสบียง", r: function () {
+          return { txt: "เนื้อมากพอสำหรับหลายวัน แต่ตลอดเวลาคุณก็คิดถึงฝุ่นที่ตกอยู่บนหญ้าที่พวกมันกิน คุณล้างมือหลายรอบจนแสบ", d: { food: 3, rad: 10, hope: -5 } };
+        } },
+        { t: "ฝังทิ้งโดยไม่แตะ ใช้เสบียงเดิมต่อไป", r: function () {
+          return { txt: "คุณขุดหลุมกลางทุ่งอยู่ทั้งบ่าย ไม่มีใครบอกว่าเป็นการตัดสินใจที่ถูกหรือผิด แต่อย่างน้อยท้องไม่ต้องแบกฝุ่นเข้าไป", d: { hp: -3, hope: -5 } };
+        } },
+        { t: "ย้ายสัตว์ที่ยังรอดเข้าที่ปลอดภัย และเก็บนมกับไข่", r: function () {
+          return { txt: "มีควายสองตัวกับไก่ไม่กี่ตัวที่ยังหายใจ คุณต้อนพวกมันเข้าโรงปูน ใช้เวลานานและเสี่ยงรับฝุ่น แต่ได้นมกับไข่เป็นเสบียงเสริม", d: { food: 1, rad: 6, hope: 8, hp: -3 }, k: 1, log: "ช่วยสัตว์ที่ยังรอดไว้ในโรงปูน" };
         } }
       ]
     }
@@ -773,7 +1069,8 @@ main { padding-top: 22px; }
       '<h1 class="title">DAY <span>ZERO</span></h1>' +
       '<p class="sub">ถ้าสงครามโลกครั้งที่ 3 เริ่มขึ้นเช้านี้ คุณจะเป็นใครสักคนในประเทศไทย และคุณจะรอดไหม</p>' +
       '<ul class="rules">' +
-      '<li>เกมจะสุ่มชีวิตให้คุณ ต่างที่อยู่ ต่างฐานะ ต่างเพศ ต่างอายุ (' + CHARS.length + ' แบบ)</li>' +
+      '<li>เกมจะสุ่มชีวิตให้คุณ ต่างที่อยู่ ต่างฐานะ ต่างเพศ ต่างอายุ (' + CHARS.length + ' แบบ) ยิ่งอยู่ใกล้จุดระเบิดและแนวลม ยิ่งอันตราย</li>' +
+      '<li>ทุกการเลือกถูกจดไว้ คนอื่นจะจำสิ่งที่คุณทำ</li>' +
       '<li>11 ฉาก ใช้เวลาประมาณ 4-5 นาที มีเหตุการณ์สุ่มทุกครั้งที่เล่น</li>' +
       '<li>บางฉากมีเวลาจำกัด แต่คุณอ่านก่อนได้ เวลาเริ่มนับตอนกด "พร้อมแล้ว"</li>' +
       '<li>ฉากจบ 7 แบบ พร้อมเรตติ้ง S ถึง D</li>' +
@@ -812,7 +1109,7 @@ main { padding-top: 22px; }
     sfx.sting(true);
     stage.innerHTML =
       '<div class="one-in">คนไทยมีราว ' + THAI_POP + ' คน เกมเพิ่งสุ่มคุณมาเป็นหนึ่งในนั้น<b>1 ใน ' + THAI_POP + "</b></div>" +
-      '<h2 class="end-title">' + c.name + "</h2>" +
+      '<div class="namerow">' + avatar(c) + '<h2 class="end-title">' + c.name + "</h2></div>" +
       '<dl class="facts">' +
       "<dt>เพศ</dt><dd>" + c.gender + "</dd>" +
       "<dt>อายุ</dt><dd>" + c.age + " ปี</dd>" +
@@ -821,6 +1118,7 @@ main { padding-top: 22px; }
       "<dt>ฐานะ</dt><dd>" + c.cls + "</dd>" +
       "<dt>ติดตัว</dt><dd>สุขภาพ " + c.hp + "% · น้ำและอาหาร " + c.food + " วัน · ขวัญ " + c.hope + "%" + (inv.length ? " · " + inv.join(", ") : "") + "</dd>" +
       "</dl>" +
+      mapSvg(false) +
       '<div class="pg"><div class="up"><h4>ได้เปรียบ</h4>' + c.perk + '</div><div class="down"><h4>เสียเปรียบ</h4>' + c.flaw + "</div></div>" +
       '<div class="btns"><button class="btn" id="live">เริ่มชีวิตนี้</button></div>';
     $("#live").addEventListener("click", function () { S.i = 0; scene(); });
@@ -833,10 +1131,11 @@ main { padding-top: 22px; }
     stopTimer();
     var sc = cur();
     S.day = sc.day;
+    if (sc.onEnter) sc.onEnter();
     hud();
     if (S.i === 0) sfx.siren();
     else if (S.rad >= 5) sfx.geiger(Math.min(16, 2 + Math.round(S.rad / 5)));
-    var story = head(sc) + '<div class="story">' + paras(sc.text(S)) + "</div>";
+    var story = head(sc) + '<div class="story">' + paras(sc.text(S)) + "</div>" + (sc.extra ? sc.extra() : "");
     if (sc.timer) {
       stage.innerHTML = story +
         '<div class="ready"><span>ฉากนี้มีเวลาจำกัด ' + sc.timer + ' วินาที อ่านข้อความด้านบนให้จบก่อน แล้วกดเมื่อพร้อม</span>' +
@@ -890,6 +1189,8 @@ main { padding-top: 22px; }
     var sc = cur();
     sfx.pick();
     var res = c.r(S);
+    if (res.k) S.karma += res.k;
+    if (res.log) S.log.push({ t: res.log, k: res.k || 0 });
     if (res.set) for (var k in res.set) S.f[k] = res.set[k];
     var diff = apply(res.d);
     hud();
@@ -929,16 +1230,20 @@ main { padding-top: 22px; }
       if (S.f.group) extra += " กลุ่มคนที่คุณชวนมาด้วยกัน กลายเป็นครอบครัวชั่วคราว";
       if (S.f.dog) extra += " สุนัขตัวผอมนอนขดอยู่ที่เท้าคุณ มันหนักขึ้นเล็กน้อยตั้งแต่วันแรกที่เจอกัน";
     }
-    var pts = S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (id === "shelter" || id === "community" ? 15 : 0);
+    var pts = clamp(S.karma, -4, 4) * 2 + S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (id === "shelter" || id === "community" ? 15 : 0);
     var rk = dead ? "D" : pts >= 85 ? "S" : pts >= 70 ? "A" : pts >= 55 ? "B" : "C";
     sfx.sting(!dead);
     var o = dead ? "—" : "1 ใน " + odds();
     var pips = ORDER.map(function (k) { return '<i class="' + (seen.indexOf(k) >= 0 ? "on" : "") + '"></i>'; }).join("");
     var shareText = "Day Zero: ฉันเป็น" + S.char.name + " (" + S.char.job + " " + S.char.province + ") · " + e.title + " · เรตติ้ง " + rk + " · รอดมา " + S.day + " วัน · โอกาสรอด " + o + " ลองเล่นดูไหม";
+    var logHtml = S.log.length
+      ? '<div class="log"><h3>สิ่งที่คุณเลือกไว้</h3><ul>' + S.log.map(function (l) { return '<li class="' + (l.k > 0 ? "up" : l.k < 0 ? "down" : "") + '">' + l.t + "</li>"; }).join("") + "</ul></div>"
+      : "";
     stage.innerHTML =
+      art(dead ? "ruin" : "dawn") +
       '<div class="end-kind ' + e.kind + '">' + (dead ? "จบเกม · ไม่รอด" : "จบเกม · รอดชีวิต") + "</div>" +
       '<h2 class="end-title">' + e.title + "</h2>" +
-      '<div class="who-line">' + S.char.name + " · " + S.char.gender + " " + S.char.age + " ปี · " + S.char.job + " · " + S.char.province + "</div>" +
+      '<div class="who-row">' + avatar(S.char) + '<div class="who-line">' + S.char.name + " · " + S.char.gender + " " + S.char.age + " ปี · " + S.char.job + " · " + S.char.province + "</div></div>" +
       '<div class="story">' + paras(e.body + extra) + "</div>" +
       '<div class="recap">' +
       '<div><div class="k">วันที่เอาชีวิตรอด</div><div class="v">' + S.day + "</div></div>" +
@@ -946,7 +1251,10 @@ main { padding-top: 22px; }
       '<div><div class="k">สุขภาพ</div><div class="v">' + Math.round(S.hp) + "%</div></div>" +
       '<div><div class="k">โอกาสรอด (ตามเกม)</div><div class="v odds-v">' + o + "</div></div>" +
       '<div><div class="k">เรตติ้ง</div><div class="v odds-v">' + rk + "</div></div>" +
+      '<div><div class="k">ความดีที่ทำไว้</div><div class="v">' + (S.karma > 0 ? "+" : "") + S.karma + "</div></div>" +
+      '<div><div class="k">ห่างจุดระเบิด</div><div class="v">' + S.char.gz + " กม.</div></div>" +
       "</div>" +
+      logHtml +
       '<div class="real"><h3>ถ้าเกิดเรื่องจริง</h3><ul>' +
       "<li>เข้าอาคารที่แข็งแรงทันที ไปที่ห้องตรงกลางตึกหรือใต้ดิน ไกลจากหน้าต่าง</li>" +
       "<li>อยู่ข้างในไว้อย่างน้อย 24 ชั่วโมง จนกว่าทางการจะประกาศว่าออกได้</li>" +
