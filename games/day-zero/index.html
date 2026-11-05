@@ -282,6 +282,17 @@ button, .btn, .choice { touch-action: manipulation; }
 .cine-bar .dots i { width: 22px; height: 3px; background: #2a2f22; }
 .cine-bar .dots i.on { background: var(--signal); }
 @media (prefers-reduced-motion: reduce) { .cine .sun, .cl, .cine .pp { transition: none; } .cine .alertbox.on .big { animation: none; } }
+.cine.tall { aspect-ratio: 4 / 3.5; }
+.cine.tall .alertbox { gap: 6px; padding: 8px 0; align-content: center; }
+.cine.tall .alertbox .sm { font-size: 13px; }
+.cine .picon { width: min(40%, 150px); height: auto; margin: 0 auto; }
+.cine .picon .swing { transform-origin: 100px 18px; animation: swing .55s ease-in-out infinite alternate; }
+@keyframes swing { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+.cine .picon .vib { animation: blinkr .45s steps(2, jump-none) infinite; }
+.cine .place { position: absolute; left: 12px; top: 10px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; color: #fff; text-shadow: 0 1px 3px #000; }
+.cine .who { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 13px; text-shadow: 0 1px 3px #000; }
+.cine .who .avatar { width: 52px; height: 52px; }
+@media (prefers-reduced-motion: reduce) { .cine .picon .swing, .cine .picon .vib { animation: none; } }
 .snd { font-family: var(--f-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; background: none; border: 1px solid var(--line); color: var(--dim); padding: 1px 8px; cursor: pointer; line-height: 1.7; }
 .snd[aria-pressed="true"] { color: var(--signal); border-color: var(--signal); }
 .bar .grp { display: flex; align-items: center; gap: 12px; }
@@ -317,6 +328,7 @@ button, .btn, .choice { touch-action: manipulation; }
   <div class="bar"><span><b>Civil Alert</b></span><span class="grp"><button class="snd" id="menubtn" type="button" aria-expanded="false" aria-controls="menu">ตั้งค่า</button><span id="stepno">DAY ZERO</span></span></div>
   <div class="menu" id="menu" hidden>
     <div class="mrow"><span class="ml">เสียง</span><button class="snd" id="snd" type="button" aria-pressed="true">เปิด</button></div>
+    <div class="mrow"><span class="ml">ฉากเปิดสั้นก่อนเริ่มแต่ละชีวิต</span><button class="snd" id="pcbtn" type="button" aria-pressed="true">เปิด</button></div>
     <div class="mrow"><span class="ml">ขนาดตัวอักษร</span><span class="sizes"><button type="button" class="sz" data-sz="0" aria-label="ตัวอักษรเล็ก">ก</button><button type="button" class="sz" data-sz="1" aria-label="ตัวอักษรกลาง">ก</button><button type="button" class="sz" data-sz="2" aria-label="ตัวอักษรใหญ่">ก</button></span></div>
     <div class="mrow"><span class="ml">รอบนี้</span><button class="snd quit" id="quit" type="button">ออกจากรอบนี้</button></div>
   </div>
@@ -2489,7 +2501,7 @@ button, .btn, .choice { touch-action: manipulation; }
       mapSvg(false) +
       '<div class="pg"><div class="up"><h4>ได้เปรียบ</h4>' + c.perk + '</div><div class="down"><h4>เสียเปรียบ</h4>' + c.flaw + "</div></div>" +
       '<div class="btns"><button class="btn" id="live">เริ่มชีวิตนี้</button></div>';
-    $("#live").addEventListener("click", function () { S.i = 0; scene(); });
+    $("#live").addEventListener("click", function () { S.i = 0; ctx(); if (pcOn) personalCine(S.char, scene); else scene(); });
     $("#live").focus({ preventScroll: true });
   }
 
@@ -2684,7 +2696,14 @@ button, .btn, .choice { touch-action: manipulation; }
     $("#hud").hidden = true; $("#mini").hidden = true; $("#stepno").textContent = "ฉากเปิดเรื่อง";
     var pick = CHARS.slice().sort(function () { return Math.random() - 0.5; }).slice(0, 6);
     var short = function (j) { return j.split(" (")[0].replace(/^(เจ้าของ|เจ้าอาวาส|พนักงาน|อาสาสมัคร|แรงงาน)/, "$1"); };
-    var city = horizon("urban");
+    var SETS = [
+      { type: "urban", cap: "เช้าวันธรรมดา ในประเทศไทย" },
+      { type: "rural", cap: "ข้าวในนากำลังออกรวง ควายนอนอยู่ใต้ร่มไม้" },
+      { type: "coast", cap: "เรือประมงกลับเข้าท่า กลิ่นปลาสดลอยมาตามลม" },
+      { type: "remote", cap: "หมอกยังลอยอยู่บนดอย ไก่ขันรับเช้า" }
+    ];
+    var setng = SETS[Math.floor(Math.random() * SETS.length)];
+    var city = horizon(setng.type);
     stage.innerHTML =
       '<div class="cine" id="cine" role="img" aria-label="ฉากเปิดเรื่อง Day Zero">' +
         '<div class="cl" id="l1"><svg class="cs" id="l1svg" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="dawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a3a"/><stop offset=".6" stop-color="#8a5a3a"/><stop offset="1" stop-color="#e8a54a"/></linearGradient></defs>' +
@@ -2707,7 +2726,7 @@ button, .btn, .choice { touch-action: manipulation; }
     $("#cskip").addEventListener("click", finish);
 
     // 1. an ordinary morning
-    at(300, function () { show("l1", true); el("l1svg").classList.add("rise"); dot(0); cap("เช้าวันธรรมดา ในประเทศไทย"); tone(110, 3.2, "sine", 0.03); [0.4, 0.9, 1.5, 2.1].forEach(function (d) { tone(2300 + d * 200, 0.08, "sine", 0.02, d); tone(2700 + d * 100, 0.08, "sine", 0.02, d + 0.12); }); });
+    at(300, function () { show("l1", true); el("l1svg").classList.add("rise"); dot(0); cap(setng.cap); tone(110, 3.2, "sine", 0.03); [0.4, 0.9, 1.5, 2.1].forEach(function (d) { tone(2300 + d * 200, 0.08, "sine", 0.02, d); tone(2700 + d * 100, 0.08, "sine", 0.02, d + 0.12); }); });
     // 2. many lives
     at(3600, function () { show("l2", true); el("people").classList.add("on"); dot(1); cap("คนหลายสิบล้านคน ต่างที่อยู่ ต่างฐานะ ต่างชีวิต"); pick.forEach(function (c, n) { tone(520 + n * 70, 0.5, "triangle", 0.03, n * 0.25 * k); }); });
     // 3. the alert
@@ -2735,6 +2754,70 @@ button, .btn, .choice { touch-action: manipulation; }
     at(17400, function () { dot(4); cap("คุณจะรอดไหม"); });
     at(19800, finish);
   }
+
+  /* a shorter, life-specific opening played after the life card: where you are, how the warning reaches you, what is at stake */
+  var CINE_KIND = { napat: "phone", somsak: "speaker", fasai: "bell", sommai: "radio", theerapat: "phone", kaew: "tv", mali: "speaker", ade: "speaker", yaithong: "radio", min: "phone", hasan: "boatradio", ton: "phone", lungmu: "siren", monk: "bell", maepu: "phone", ploy: "headset", nuch: "speaker", ek: "radio" };
+  function alertIcon(kind) {
+    var g = {
+      phone: '<rect x="70" y="14" width="60" height="112" rx="9" class="f-near"/><rect x="75" y="26" width="50" height="88" rx="3" fill="#2a0f0b"/><rect x="79" y="40" width="42" height="26" fill="#e5533d"/><path d="M84 50 h32" stroke="#fff" stroke-width="2"/><path d="M84 58 h22" stroke="#f3b8ad" stroke-width="1.5"/><circle cx="100" cy="120" r="3" fill="#555"/><g class="vib"><path class="s-alarm" d="M54 40 l-9 6 l9 6 M146 40 l9 6 l-9 6 M46 74 l-8 6 l8 6 M154 74 l8 6 l-8 6"/></g>',
+      speaker: '<rect x="54" y="62" width="18" height="14" class="f-dim"/><path class="f-near" d="M70 56 h22 l38 -30 v90 l-38 -30 h-22z"/><g class="vib"><path class="s-alarm" d="M138 50 q13 19 0 38 M150 38 q22 31 0 62 M162 26 q30 44 0 86"/></g>',
+      bell: '<rect x="96" y="10" width="8" height="12" class="f-dim"/><g class="swing"><path class="f-signal" d="M100 24 q-34 6 -36 52 l-9 20 h90 l-9 -20 q-2 -46 -36 -52z"/><circle class="f-signal" cx="100" cy="104" r="8"/></g>',
+      radio: '<rect x="52" y="52" width="96" height="62" rx="6" class="f-near"/><circle class="s-signal" cx="80" cy="83" r="15"/><path class="s-signal" d="M80 83 l9 -7"/><rect class="f-dim" x="108" y="68" width="28" height="3"/><rect class="f-dim" x="108" y="79" width="28" height="3"/><rect class="f-dim" x="108" y="90" width="28" height="3"/><path class="s-bone" d="M140 52 L172 14"/><g class="vib"><path class="s-signal" d="M178 26 q10 -9 20 0 M176 14 q16 -16 32 0"/></g>',
+      tv: '<rect x="42" y="26" width="116" height="80" rx="7" class="f-near"/><rect x="49" y="33" width="102" height="66" fill="#2a0f0b"/><g class="vib"><rect x="49" y="58" width="102" height="18" fill="#e5533d"/></g><path d="M66 67 h68" stroke="#fff" stroke-width="2"/><path class="s-dim" d="M80 106 l-12 16 M120 106 l12 16"/>',
+      boatradio: '<rect x="62" y="30" width="76" height="46" rx="5" class="f-near"/><circle class="s-signal" cx="84" cy="53" r="11"/><rect class="f-dim" x="104" y="44" width="24" height="3"/><rect class="f-dim" x="104" y="54" width="24" height="3"/><path class="s-bone" d="M132 30 L158 4"/><g class="vib"><path class="s-signal" d="M164 14 q9 -8 18 0"/></g><path class="f-near" d="M40 96 h120 l-16 24 h-88z"/><path class="s-line" d="M10 124 q12 -5 24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0"/>',
+      siren: '<rect x="62" y="82" width="76" height="34" rx="5" class="f-near"/><g class="vib"><rect x="80" y="62" width="40" height="20" rx="3" class="f-alarm"/><path class="s-alarm" d="M100 48 v-14 M76 58 l-10 -10 M124 58 l10 -10"/></g><circle cx="80" cy="118" r="7" class="f-dim"/><circle cx="120" cy="118" r="7" class="f-dim"/>',
+      headset: '<path d="M58 84 Q58 26 100 26 Q142 26 142 84" fill="none" stroke="#0d0f0b" stroke-width="9"/><rect x="46" y="72" width="22" height="40" rx="9" class="f-near"/><rect x="132" y="72" width="22" height="40" rx="9" class="f-near"/><g class="vib"><path class="s-alarm" d="M36 78 q-9 16 0 32 M164 78 q9 16 0 32"/></g>'
+    }[kind] || "";
+    return '<svg class="picon" viewBox="0 0 200 140" aria-hidden="true">' + g + "</svg>";
+  }
+  function skyFor(t0) {
+    var h = +t0.split(":")[0] + (+t0.split(":")[1]) / 60;
+    return h < 6 ? ["#0b1522", "#1d3248", "#46607a", "#dfe7ef"] : h < 7 ? ["#1b2a3a", "#8a5a3a", "#e8a54a", "#ffd77a"] : ["#3a6a9a", "#9ab8c8", "#f2d9a0", "#fff1b8"];
+  }
+  function personalCine(c, done) {
+    cineClear(); stopTimer();
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches, k = reduce ? 0.4 : 1;
+    $("#hud").hidden = true; $("#mini").hidden = true; $("#stepno").textContent = "ก่อนเริ่มชีวิต";
+    var sky = skyFor(c.o.t0), hz = horizon(c.type), kind = CINE_KIND[c.id] || "phone";
+    var cel = sky[3], night = sky[0] === "#0b1522";
+    stage.innerHTML =
+      '<div class="cine tall" role="img" aria-label="ฉากเปิดของ ' + c.name + '">' +
+        '<div class="cl on" id="p1"><svg class="cs" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + sky[0] + '"/><stop offset=".6" stop-color="' + sky[1] + '"/><stop offset="1" stop-color="' + sky[2] + '"/></linearGradient></defs><rect width="400" height="250" fill="url(#pg)"/>' +
+        '<circle cx="' + (night ? 310 : 296) + '" cy="' + (night ? 56 : 128) + '" r="' + (night ? 16 : 30) + '" fill="' + cel + '"/>' + (night ? '<g fill="#fff" opacity=".7"><circle cx="60" cy="30" r="1.4"/><circle cx="120" cy="52" r="1"/><circle cx="210" cy="26" r="1.2"/><circle cx="350" cy="90" r="1"/><circle cx="30" cy="80" r="1"/></g>' : "") +
+        '<g transform="translate(0 140)">' + hz + '</g></svg><div class="place">' + clock(c.o.t0, 0) + " · " + c.place + '</div><div class="who">' + avatar(c) + "<span>" + c.name + "</span></div></div>" +
+        '<div class="cl alertbox" id="p2">' + alertIcon(kind) + '<div class="big">แจ้งเตือนภัยฉุกเฉิน</div><div class="sm">' + c.o.alarm + "</div></div>" +
+        '<div class="cl" id="p3"><svg class="cs" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice"><rect width="400" height="250" fill="#14100e"/><rect width="400" height="250" fill="#e5533d" opacity=".12"/><path class="missile" id="pmp" d="M24 30 Q210 -30 330 190" fill="none" stroke="#e8c547" stroke-width="2.4" stroke-linecap="round"/><g transform="translate(0 140)">' + hz + '</g></svg><div class="count" id="pcount">14:00</div></div>' +
+      "</div>" +
+      '<div class="cap" id="pcap" aria-live="polite"></div>' +
+      '<div class="cine-bar"><button class="btn ghost" id="pskip" type="button">ข้าม</button><span class="dots" id="pdots"><i></i><i></i><i></i></span></div>';
+    var el = function (id) { return document.getElementById(id); };
+    var at = function (ms, fn) { cineTimers.push(setTimeout(fn, ms * k)); };
+    var show = function (id, on) { var e = el(id); if (e) e.classList.toggle("on", on); };
+    var cap = function (t) { var e = el("pcap"); if (e) e.textContent = t; };
+    var dot = function (n) { var d = el("pdots"); if (d) Array.prototype.forEach.call(d.children, function (x, i) { x.classList.toggle("on", i <= n); }); };
+    var finish = function () { cineClear(); done(); };
+    $("#pskip").addEventListener("click", finish);
+    at(200, function () { dot(0); cap(c.alert); tone(110, 3, "sine", 0.03); });
+    at(4200, function () {
+      show("p2", true); dot(1); cap("แล้วคำเตือนก็มาถึงคุณ");
+      if (kind === "bell") { tone(392, 1.2, "sine", 0.06); tone(784, 0.8, "sine", 0.02, 0.1); tone(392, 1.2, "sine", 0.06, 0.8); }
+      else if (kind === "radio" || kind === "boatradio") AMB.radio();
+      else if (kind === "phone") { [0, 0.18, 0.36].forEach(function (d) { tone(1250, 0.1, "square", 0.03, d); }); }
+      sfx.siren();
+    });
+    at(8200, function () {
+      show("p2", false); show("p3", true); dot(2); cap("อีก 14 นาที " + c.tail);
+      var pth = el("pmp"); pth.style.animationDuration = (3.6 * k) + "s"; pth.parentNode.parentNode.classList.add("on"); pth.classList.add("on");
+      var t0 = Date.now(), D = 3600 * k, last = -1;
+      cineIv = setInterval(function () {
+        var f = Math.min(1, (Date.now() - t0) / D), sec = Math.round(840 * (1 - f));
+        var cc = el("pcount"); if (cc) cc.textContent = ("0" + Math.floor(sec / 60)).slice(-2) + ":" + ("0" + (sec % 60)).slice(-2);
+        var tk = Math.floor(f * 14); if (tk !== last) { last = tk; sfx.tick(f > 0.7); }
+        if (f >= 1) { clearInterval(cineIv); cineIv = null; }
+      }, 80);
+    });
+    at(12600, finish);
+  }
   function splash() {
     $("#hud").hidden = true; $("#mini").hidden = true; $("#stepno").textContent = "DAY ZERO";
     stage.innerHTML = '<h1 class="title">DAY <span>ZERO</span></h1><p class="sub">เกมเอาชีวิตรอดสั้น ๆ ถ้าสงครามโลกครั้งที่ 3 เริ่มขึ้นเช้านี้</p>' +
@@ -2743,6 +2826,8 @@ button, .btn, .choice { touch-action: manipulation; }
     $("#splashgo").focus({ preventScroll: true });
   }
 
+  var pcOn = true;
+  try { pcOn = localStorage.getItem("dayzero.pc") !== "0"; } catch (e) {}
   var sizes = [16, 18, 21], quitTimer = null;
   function applySize(n) {
     document.body.style.fontSize = sizes[n] + "px";
@@ -2774,6 +2859,10 @@ button, .btn, .choice { touch-action: manipulation; }
     new MutationObserver(restart).observe(stage, { childList: true });
   }
 
+  var pcBtn = $("#pcbtn");
+  function paintPc() { pcBtn.setAttribute("aria-pressed", pcOn ? "true" : "false"); pcBtn.textContent = pcOn ? "เปิด" : "ปิด"; }
+  pcBtn.addEventListener("click", function () { pcOn = !pcOn; try { localStorage.setItem("dayzero.pc", pcOn ? "1" : "0"); } catch (e) {} paintPc(); });
+  paintPc();
   var sndBtn = $("#snd");
   function paintSnd() { sndBtn.setAttribute("aria-pressed", soundOn ? "true" : "false"); sndBtn.textContent = soundOn ? "เปิด" : "ปิด"; }
   sndBtn.addEventListener("click", function () {
