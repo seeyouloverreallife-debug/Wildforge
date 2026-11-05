@@ -206,6 +206,18 @@ main { padding-top: 22px; }
 .hardbtn[aria-pressed="true"] .sw::after { left: 15px; background: var(--alarm); }
 .hard .hint { margin-top: 6px; font-size: 13px; color: var(--dim); line-height: 1.55; max-width: 52ch; }
 .hardtag { display: inline-block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; color: var(--alarm); border: 1px solid #6a2e25; padding: 0 8px; margin-left: 8px; }
+.lifegrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin: 6px 0 4px; }
+.lifecard { display: flex; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); background: var(--panel); min-width: 0; }
+.lifecard.unplayed { opacity: .55; }
+.lifecard .avatar { width: 48px; height: 48px; }
+.lc-body { min-width: 0; flex: 1; }
+.lc-name { font-family: var(--f-display); font-weight: 700; font-size: 16px; line-height: 1.3; }
+.lc-sub { font-size: 12px; color: var(--dim); line-height: 1.4; }
+.lc-bar { height: 4px; background: #23271d; margin: 8px 0 4px; }
+.lc-bar i { display: block; height: 100%; background: var(--ok); }
+.lc-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--dim); }
+.lc-sp { margin-top: 4px; font-size: 12px; color: var(--dim); }
+.lc-sp.on { color: var(--signal); }
 .snd { font-family: var(--f-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; background: none; border: 1px solid var(--line); color: var(--dim); padding: 1px 8px; cursor: pointer; line-height: 1.7; }
 .snd[aria-pressed="true"] { color: var(--signal); border-color: var(--signal); }
 .bar .grp { display: flex; align-items: center; gap: 12px; }
@@ -268,6 +280,63 @@ main { padding-top: 22px; }
     var p = base.split(":"), m = (+p[0]) * 60 + (+p[1]) + plus, h = Math.floor(m / 60) % 24, mm = m % 60;
     return "วันที่ 0 · " + (h < 10 ? "0" : "") + h + ":" + (mm < 10 ? "0" : "") + mm;
   }
+
+  /* per-life epilogue lines and a special ending (needs kindness, health, survival) */
+  var EPI = {
+    napat: { live: "คุณเปิดสมุดโน้ตที่เคยใช้จดงานโฆษณาและเขียนหน้าแรกใหม่ ด้วยรายชื่อคนในตึกที่ยังอยู่", dead: "ห้อง 1408 ยังมีกาแฟที่คุณชงทิ้งไว้ตั้งแต่เช้าวันแรก และไม่มีใครมาเก็บ", best: { title: "ตึกที่ไม่ทิ้งใคร", body: "เดือนต่อมา ป้ายชื่อคอนโดถูกเปลี่ยนเป็นชื่อกองกลางที่คุณช่วยตั้งไว้ ตั้งแต่คืนแรกที่ล็อบบี้ มีคนสามร้อยคนรู้จักชื่อเพื่อนบ้านข้างห้องเป็นครั้งแรก และผู้ป่วยที่คุณแบกถังออกซิเจนไปให้ยังเป็นคนแรกที่ทักทายคุณทุกเช้า" } },
+    somsak: { live: "ลุงนั่งบนแคร่ใต้ถุนบ้านมองนาที่เริ่มมีต้นกล้าสีเขียวอ่อนโผล่ขึ้นมาท่ามกลางเถ้า", dead: "ข้าวสารกระป๋องนมข้นสองกระป๋องยังวางอยู่บนแคร่ ตรงที่ลุงเคยนั่งดูพระอาทิตย์ตก", best: { title: "ผู้ใหญ่ของทุกคน", body: "ปีหน้า ผู้ใหญ่บ้านเลือกลุงให้ดูแลยุ้งข้าวกลางของทั้งหมู่บ้าน ชาวบ้านทุกคนที่เคยได้ข้าวกระป๋องหนึ่งจากมือลุงมาช่วยกันเกี่ยวข้าวรอบใหม่ และไม่มีใครต้องอดแม้แต่คนเดียวในหมู่บ้านนั้น" } },
+    fasai: { live: "คุณจดชื่อเพื่อนทุกคนที่รอดมาด้วยกันลงสมุดเล่มเล็ก เผื่อวันหนึ่งต้องตามหาพวกเขาอีกครั้ง", dead: "กระเป๋านักเรียนใบนั้นยังพิงอยู่ข้างเสาธง ข้างในมีข้าวกล่องที่แม่ทำให้ยังไม่ได้แกะ", best: { title: "เด็กที่ครูไว้ใจ", body: "เมื่อโรงเรียนกลับมาเปิดอีกครั้ง ครูใหญ่เรียกคุณขึ้นหน้าเสาธงและบอกว่าไม่มีรางวัลให้ แต่อยากให้ทุกคนรู้ว่าตอนที่ทุกคนกลัวที่สุด มีเด็กคนหนึ่งยกมือถามคำถามที่ทำให้พวกเขารอด" } },
+    sommai: { live: "คุณจอดมอเตอร์ไซค์ไว้ใต้ร่มไม้และลูบคอรถเบา ๆ เหมือนขอบคุณที่ไม่ทิ้งกัน", dead: "เสื้อวินสีส้มตัวหนึ่งยังแขวนอยู่ที่ปากซอยคลองเตย คนที่ผ่านไปมาไม่กล้าหยิบ", best: { title: "คนขับที่ทั้งซอยจำได้", body: "หลายเดือนต่อมา เด็กที่เกิดวันนั้นถูกตั้งชื่อว่า \"สมหมาย\" เป็นชื่อกลางของเขา ผู้หญิงท้องแก่ที่คุณพาไปโรงพยาบาลเอาลูกมาให้คุณอุ้มเป็นครั้งแรกที่ปากซอย และไม่มีใครในย่านนั้นเรียกคุณว่า \"ไอ้วิน\" อีกเลย" } },
+    theerapat: { live: "คุณถอดนาฬิกาเรือนแพงวางไว้บนโต๊ะแล้วหยิบจอบขึ้นมาช่วยปลูกผักหลังสโมสรเป็นครั้งแรกในชีวิต", dead: "เงินห้าสิบล้านในบัญชียังอยู่ที่เดิม ไม่มีใครมาเอา และไม่มีใครมาถามหา", best: { title: "ประธานที่ไม่มีใครเรียกว่าคุณ", body: "ปีหน้า หมู่บ้านเปลี่ยนชื่อสโมสรเป็น \"สโมสรร่วมใจ\" ตามที่แม่บ้านของคุณเสนอ คุณยังเป็นประธาน แต่ตอนที่แม่บ้านพาลูกชายที่ยาเบาหวานหายแล้วมาเก็บผักด้วยกัน คุณรู้ตัวว่ามันคือการได้กลับมาเป็นคนธรรมดาเสียที" } },
+    kaew: { live: "คุณยังพูดภาษาอังกฤษกับแขกคนสุดท้ายที่ยังไม่ได้ขึ้นเรือ แม้คุณจะเหนื่อยจนแทบไม่ได้ยินเสียงตัวเอง", dead: "ป้ายชื่อพนักงานแผ่นหนึ่งยังติดอยู่ที่ยูนิฟอร์ม แขวนอยู่หลังเคาน์เตอร์ล็อบบี้", best: { title: "คนสุดท้ายที่ออกจากเกาะ", body: "เมื่อเรือลำสุดท้ายออกจากท่า คุณยืนอยู่ท้ายเรือเป็นคนสุดท้ายที่ขึ้น ผู้หญิงต่างชาติที่คุณช่วยลูกเธอจากโรคหอบหืดร้องไห้แล้วยื่นสร้อยเส้นเล็กให้โดยไม่ขออะไร ต่อมามีจดหมายขอบคุณหนึ่งฉบับถูกส่งมาจากประเทศที่คุณไม่เคยไป" } },
+    mali: { live: "คุณเปิดร้านเสริมสวยอีกครั้งแม้จะไม่มีไฟ ตั้งเก้าอี้กลางตลาดและเรียกลูกค้าคนแรกด้วยเสียงเดิม", dead: "กรรไกรคู่เก่าของคุณยังวางอยู่บนเก้าอี้ ตรงที่ผมเปียกครึ่งหัวของลูกค้าคนสุดท้ายเริ่มแห้ง", best: { title: "ร้านที่ไม่เคยปิด", body: "ตลาดเปิดอีกครั้งในอีกสามสัปดาห์ แม่ค้าทุกคนที่เคยยืมเตาของคุณช่วยกันทาสีหน้าร้านใหม่เป็นสีชมพูอ่อนโดยไม่ได้ขออนุญาต วัยรุ่นที่คุณให้พักหลังร้านเขียนป้ายหน้าร้านว่า \"ที่นี่ของทุกคน\" ด้วยตัวหนังสือที่ยังเอียง ๆ" } },
+    ade: { live: "คุณนั่งกับผู้เฒ่าฟังเสียงไม้ไผ่เสียดสีกันในลมและไม่พูดอะไรเลยทั้งคืน", dead: "ตะกร้ากาแฟของคุณยังวางอยู่ที่ชายไร่ เมล็ดสุกแดงเต็มตะกร้า รอให้ใครสักคนมาเก็บ", best: { title: "ลูกหลานของแผ่นดิน", body: "ผู้เฒ่ามอบสร้อยเงินของบรรพบุรุษให้คุณต่อหน้าทุกคนบนดอย และบอกว่าคนที่รู้จักแบ่งน้ำกับที่ดินให้คนแปลกหน้า คือคนที่จะเป็นหัวหน้าหมู่บ้านต่อไป ตอนนั้นคุณไม่รู้ว่าจะพูดอะไร จึงยกมือไหว้อย่างเงียบ ๆ" } },
+    yaithong: { live: "ยายนั่งบนระเบียงริมน้ำและเริ่มนึ่งขนมถ้วยหม้อใหม่ แม้ไม่มีใครสั่งและไม่มีใครรอ", dead: "หม้อขนมถ้วยบนเตายังมีไอน้ำอุ่น ๆ ใบเตยยังหอมอยู่ทั้งห้อง ราวกับยายแค่ออกไปเดินเล่น", best: { title: "ยายของทั้งซอย", body: "เด็ก ๆ ที่ยายเล่านิทานให้ฟังโตขึ้นและบอกใครต่อใครว่าตอนเด็กพวกเขาอยู่รอดมาได้เพราะยายคนหนึ่งในซอยที่ไม่เคยพูดว่ากลัวเลยสักครั้ง หลานชายของยายกลับมาพร้อมขนมถ้วยสูตรยาย แล้วเปิดร้านเล็ก ๆ หน้าบ้านริมน้ำ" } },
+    min: { live: "คุณโทรหาแม่ที่บ้านเกิดทุกวันแม้สัญญาณจะไม่ติด เพราะรู้ว่าสักวันสายจะต่อได้", dead: "เพื่อนร่วมห้องยังนอนบนเตียงสองชั้นล่าง และเก็บเสื้อโรงงานที่คุณแขวนไว้ ไว้วันที่คุณจะกลับมา", best: { title: "คนที่ไม่เคยถูกลืม", body: "หลายเดือนต่อมา เพื่อนแรงงานร้อยกว่าคนที่คุณช่วยแบ่งอาหารจากห้องเย็นจัดงานเลี้ยงเล็ก ๆ ที่วัดพม่าในซอย คุณถูกเรียกขึ้นไปพูด ใช้ทั้งสองภาษา และเป็นครั้งแรกที่ไม่มีใครถามคุณเรื่องเอกสาร" } },
+    hasan: { live: "คุณล้างเรือด้วยน้ำจืดทุกเช้า ไม่ใช่เพราะมันสกปรก แต่เพราะมันทำให้คุณรู้สึกว่าชีวิตยังเป็นของเรา", dead: "เรือสีฟ้าลำเก่ายังจอดอยู่ที่ท่า ทิ้งรอยเชือกที่ผูกแน่นเหมือนรอให้เจ้าของมาแก้", best: { title: "กัปตันของคนทั้งอ่าว", body: "เรือลำที่คุณขนผู้ลี้ภัยข้ามอ่าวกลายเป็นตำนานในหมู่บ้านชายฝั่งสองประเทศ ผู้เฒ่าที่เคยบอกว่าผิดกฎหมายมายืนที่ท่าเรือพร้อมกาแฟแก้วหนึ่ง แล้วพูดว่า \"ชีวิตคนสำคัญกว่าจริง ๆ\" ลูกสามคนของคุณฟังอยู่ข้างหลัง" } },
+    ton: { live: "คุณยังเปิดวิทยุทุกเช้าและพูดชื่อสถานีที่คุณตั้งขึ้นเองกับเสียงซ่า ๆ เหมือนเรียกเพื่อน", dead: "วิทยุสื่อสารบนโต๊ะยังเปิดอยู่เบา ๆ มีเสียงใครสักคนเรียกชื่อคุณซ้ำ ๆ ผ่านสัญญาณซ่า", best: { title: "เสียงที่ทั้งเมืองรู้จัก", body: "เครือข่ายวิทยุที่คุณตั้งขึ้นถูกทางการเชิญไปเป็นส่วนหนึ่งของศูนย์สื่อสารฉุกเฉินจังหวัด คุณได้รับป้ายชื่อที่เขียนว่า \"ผู้ประสานงาน\" แต่สิ่งที่คุณเก็บไว้ที่สุดคือกระดาษเอสี่แผ่นแรกที่จดตำแหน่งแม่ของเด็กหญิงบนชั้นสอง" } },
+    lungmu: { live: "คุณนอนใต้ชานชาลาที่คุ้นเคย แต่รอบตัวมีเพื่อนที่คุณพามาและเสียงหายใจของคนหลายคนที่เคยเป็นคนแปลกหน้า", dead: "ผ้าห่มผืนเก่าของคุณยังอยู่ใต้ม้านั่งหน้าสถานี มีคนห่มมันให้คนอื่นต่อไปโดยไม่รู้ว่าเป็นของใคร", best: { title: "คนที่รู้ทางของทุกคน", body: "เมื่อเมืองเริ่มฟื้นตัว มีคนมาหาคุณที่ใต้สะพานเพื่อถามว่า ลุงหมูอยู่ไหม พวกเขาเป็นทั้งคนไร้บ้านที่คุณช่วยและผู้ชายสูทที่คุณพาออกจากเมือง วันนั้นมีคนจดชื่อคุณลงทะเบียนครั้งแรกในรอบสิบปี และมีกระดาษแผ่นหนึ่งที่เขียนว่า ที่อยู่: ใต้สะพานพุทธ ผู้ดูแลชุมชน" } },
+    monk: { live: "คุณจุดธูปหน้าพระพุทธรูปเหมือนทุกเช้า แต่วันนี้แผ่เมตตาให้ทุกคนที่ผ่านประตูวัดมา โดยไม่ถามชื่อ", dead: "ระฆังของวัดยังแขวนนิ่งอยู่ ชาวบ้านที่เหลืออยู่ผลัดกันตีเมื่อเช้าตรู่ เหมือนยังมีใครรอฟังอยู่ในกุฏิ", best: { title: "วัดที่ไม่เคยปิดประตู", body: "ผู้ลี้ภัยที่คุณเปิดประตูรับและชาวบ้านที่ช่วยกันแบกคนป่วยเข้ามา กลายเป็นหมู่บ้านใหม่ที่ล้อมวัดไว้ ทุกเช้ามีคนใส่บาตรมากกว่าที่คุณเคยเห็นในชีวิต ครั้งหนึ่งมีชายหนุ่มคนหนึ่งกลับมาหาและบอกว่า ตอนนั้นหลวงพ่อไม่ได้ตัดสินผม ผมจึงกล้ามอบตัว" } }
+  };
+
+  /* record of every run, kept in the browser so the stats page can show how each life went */
+  var RUNS_KEY = "dayzero.runs.v1", SPECIAL_KEY = "dayzero.special.v1";
+  function loadRuns() { try { return JSON.parse(localStorage.getItem(RUNS_KEY) || "[]"); } catch (e) { return []; } }
+  function saveRun(r) {
+    var a = loadRuns(); a.push(r); if (a.length > 300) a = a.slice(-300);
+    try { localStorage.setItem(RUNS_KEY, JSON.stringify(a)); } catch (e) {}
+  }
+  function loadSpecial() { try { return JSON.parse(localStorage.getItem(SPECIAL_KEY) || "[]"); } catch (e) { return []; } }
+  function saveSpecial(id) {
+    var a = loadSpecial();
+    if (a.indexOf(id) < 0) { a.push(id); try { localStorage.setItem(SPECIAL_KEY, JSON.stringify(a)); } catch (e) {} }
+    return a;
+  }
+  var RANKV = { D: 0, C: 1, B: 2, A: 3, S: 4 };
+  function statsHtml() {
+    var runs = loadRuns(), sp = loadSpecial();
+    var total = runs.length, alive = runs.filter(function (r) { return !r.dead; }).length;
+    var hardAlive = runs.filter(function (r) { return r.hard && !r.dead; }).length;
+    var cards = CHARS.map(function (c) {
+      var mine = runs.filter(function (r) { return r.id === c.id; });
+      var ok = mine.filter(function (r) { return !r.dead; }).length;
+      var best = "-"; mine.forEach(function (r) { if (best === "-" || RANKV[r.rk] > RANKV[best]) best = r.rk; });
+      var pct = mine.length ? Math.round(ok / mine.length * 100) : 0;
+      var has = sp.indexOf(c.id) >= 0;
+      return '<div class="lifecard' + (mine.length ? "" : " unplayed") + '">' + avatar(c) +
+        '<div class="lc-body"><div class="lc-name">' + c.name + '</div><div class="lc-sub">' + c.job + " · " + c.province + "</div>" +
+        '<div class="lc-bar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="lc-meta"><span>' + (mine.length ? "เล่น " + mine.length + " · รอด " + ok : "ยังไม่เคยเล่น") + "</span><span>เรตติ้งสูงสุด " + best + '</span></div>' +
+        '<div class="lc-sp ' + (has ? "on" : "") + '">' + (has ? "ฉากจบพิเศษ: " + EPI[c.id].best.title : "ฉากจบพิเศษ: ยังไม่พบ") + "</div></div></div>";
+    }).join("");
+    return '<h2 class="end-title" style="margin-top:24px">บันทึกชีวิต</h2>' +
+      '<div class="recap"><div><div class="k">เล่นทั้งหมด</div><div class="v">' + total + '</div></div>' +
+      '<div><div class="k">รอดชีวิต</div><div class="v">' + (total ? Math.round(alive / total * 100) : 0) + '%</div></div>' +
+      '<div><div class="k">รอดในโหมดยาก</div><div class="v">' + hardAlive + '</div></div>' +
+      '<div><div class="k">ฉากจบพิเศษ</div><div class="v odds-v">' + sp.length + "/" + CHARS.length + '</div></div></div>' +
+      '<div class="lifegrid">' + cards + '</div><div class="btns"><button class="btn" id="statsback">กลับ</button></div>';
+  }
+
   /* hard mode: shorter timers, supplies run out faster, fallout is worse, and nobody in the community helps you */
   var hardMode = false;
   try { hardMode = localStorage.getItem("dayzero.hard") === "1"; } catch (e) {}
@@ -1900,7 +1969,12 @@ main { padding-top: 22px; }
       '<li>ฉากจบ ' + ORDER.length + ' แบบ พร้อมเรตติ้ง S ถึง D</li>' +
       '</ul>' +
       '<div class="btns"><button class="btn" id="start">สุ่มชีวิตของฉัน</button></div>' +
-      hardHtml() + pickHtml();
+      hardHtml() + pickHtml() + '<div class="btns"><button class="btn ghost" id="statsbtn" type="button">บันทึกชีวิต</button></div>';
+    $("#statsbtn").addEventListener("click", function () {
+      stage.innerHTML = statsHtml();
+      $("#statsback").addEventListener("click", intro);
+      window.scrollTo(0, 0);
+    });
     var hb = $("#hardbtn");
     hb.addEventListener("click", function () {
       hardMode = !hardMode;
@@ -2062,9 +2136,12 @@ main { padding-top: 22px; }
     var seen = saveSeen(id);
     var extra = "";
     var chars = saveChar(S.char.id);
+    var epiL = EPI[S.char.id];
+    var special = !dead && S.karma >= 5 && S.hp >= 40;
+    if (special) { e = { kind: "live", title: epiL.best.title, body: epiL.best.body }; saveSpecial(S.char.id); }
     extra += dead
-      ? " ที่ไหนสักแห่ง " + S.char.who + "ยังรอสายจากคุณ"
-      : " คุณยังไม่รู้ว่า" + S.char.who + "เป็นอย่างไรบ้าง และจะถามทุกคนที่เดินผ่านมาจนกว่าจะรู้";
+      ? " " + epiL.dead + " ที่ไหนสักแห่ง " + S.char.who + "ยังรอสายจากคุณ"
+      : " " + epiL.live + " คุณยังไม่รู้ว่า" + S.char.who + "เป็นอย่างไรบ้าง และจะถามทุกคนที่เดินผ่านมาจนกว่าจะรู้";
     if (!dead) {
       if (S.f.shared) extra += " คนที่คุณแบ่งเสบียงให้ยังจำคุณได้ คืนนี้คุณไม่ต้องนอนเฝ้าคนเดียว";
       else if (S.f.kept) extra += " คุณมีเสบียงเก็บไว้ แต่คืนนี้คุณนอนหลับไม่สนิทเหมือนเดิม";
@@ -2080,6 +2157,7 @@ main { padding-top: 22px; }
     if (!dead && S.hp < 12 && rk === "B") rk = "C";
     sfx.sting(!dead);
     var o = dead ? "—" : "1 ใน " + odds();
+    saveRun({ id: S.char.id, end: id, rk: rk, dead: dead, hard: !!S.hard, day: S.day, k: S.karma, sp: special, t: Date.now() });
     var pips = ORDER.map(function (k) { return '<i class="' + (seen.indexOf(k) >= 0 ? "on" : "") + '"></i>'; }).join("");
     var shareText = "Day Zero" + (S.hard ? " [โหมดยาก]" : "") + ": ฉันเป็น" + S.char.name + " (" + S.char.job + " " + S.char.province + ") · " + e.title + " · เรตติ้ง " + rk + " · รอดมา " + S.day + " วัน · โอกาสรอด " + o + " ลองเล่นดูไหม";
     var logHtml = S.log.length
@@ -2087,7 +2165,7 @@ main { padding-top: 22px; }
       : "";
     stage.innerHTML =
       art(dead ? "ruin" : "dawn") +
-      '<div class="end-kind ' + e.kind + '">' + (dead ? "จบเกม · ไม่รอด" : "จบเกม · รอดชีวิต") + (S.hard ? '<span class="hardtag">โหมดยาก</span>' : "") + "</div>" +
+      '<div class="end-kind ' + e.kind + '">' + (dead ? "จบเกม · ไม่รอด" : "จบเกม · รอดชีวิต") + (special ? '<span class="hardtag" style="color:var(--signal);border-color:var(--signal)">ฉากจบพิเศษ</span>' : "") + (S.hard ? '<span class="hardtag">โหมดยาก</span>' : "") + "</div>" +
       '<h2 class="end-title">' + e.title + "</h2>" +
       '<div class="who-row">' + avatar(S.char) + '<div class="who-line">' + S.char.name + " · " + S.char.gender + " " + S.char.age + " ปี · " + S.char.job + " · " + S.char.province + "</div></div>" +
       '<div class="story">' + paras(e.body + extra) + "</div>" +
