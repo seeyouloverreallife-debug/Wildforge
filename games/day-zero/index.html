@@ -145,6 +145,21 @@ main { padding-top: 22px; }
 .prog i { flex: 1; height: 3px; background: #23271d; }
 .prog i.on { background: var(--signal); }
 
+.snd { font-family: var(--f-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; background: none; border: 1px solid var(--line); color: var(--dim); padding: 1px 8px; cursor: pointer; line-height: 1.7; }
+.snd[aria-pressed="true"] { color: var(--signal); border-color: var(--signal); }
+.bar .grp { display: flex; align-items: center; gap: 12px; }
+.items { display: flex; flex-wrap: wrap; gap: 6px; }
+.item { font-size: 12px; padding: 0 8px; border: 1px solid var(--line); color: var(--bone); line-height: 1.9; }
+.item.none { color: var(--dim); border-style: dashed; }
+.choice:disabled { opacity: .5; cursor: not-allowed; }
+.choice:disabled:hover { border-color: var(--line); }
+.choice:disabled .key { background: #4a4d3f; color: var(--bone); }
+.choice .lock { display: block; font-size: 13px; color: var(--alarm); margin-top: 2px; line-height: 1.4; }
+.ready { margin-top: 18px; padding: 14px; border: 1px dashed var(--signal); display: grid; gap: 12px; font-size: 14px; line-height: 1.55; color: var(--dim); }
+.ready .btn { width: 100%; }
+.timer.urgent .tl { animation: pulse .45s infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: .35; } }
+
 /* Effects */
 #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 50; }
 #flash.go { animation: flash 3s ease-out forwards; }
@@ -162,7 +177,7 @@ main { padding-top: 22px; }
 <body>
 <div class="app" id="app">
   <div class="stripe"></div>
-  <div class="bar"><span><b>Civil Alert</b> · ระบบแจ้งเตือนภัย</span><span id="stepno">DAY ZERO</span></div>
+  <div class="bar"><span><b>Civil Alert</b></span><span class="grp"><button class="snd" id="snd" type="button" aria-pressed="true">เสียง</button><span id="stepno">DAY ZERO</span></span></div>
   <section class="hud" id="hud" hidden aria-label="สถานะของคุณ">
     <div class="odds">
       <span class="lbl">โอกาสรอดชีวิตของคุณตอนนี้</span>
@@ -174,6 +189,7 @@ main { padding-top: 22px; }
       <div class="meter"><div class="row"><span>น้ำและอาหาร</span><span class="mono" id="v-food"></span></div><div class="track"><div class="fill" id="b-food"></div></div></div>
       <div class="meter"><div class="row"><span>ขวัญกำลังใจ</span><span class="mono" id="v-hope"></span></div><div class="track"><div class="fill neutral" id="b-hope"></div></div></div>
     </div>
+    <div class="items" id="items" aria-label="ของที่มี"></div>
     <div class="prog" id="prog" aria-hidden="true"></div>
   </section>
   <main id="stage"></main>
@@ -188,8 +204,48 @@ main { padding-top: 22px; }
   var S, timerId = null;
 
   function fresh() {
-    return { hp: 100, rad: 0, food: 1, hope: 70, cause: "starve", f: {}, i: 0, day: 0 };
+    return { hp: 100, rad: 0, food: 1, hope: 70, cause: "starve", f: {}, i: 0, day: 0, ev: Math.floor(Math.random() * EVENTS.length) };
   }
+  function cur() { var sc = SC[S.i]; return sc.pick ? EVENTS[S.ev] : sc; }
+
+  /* ---------- sound (synthesized, starts after the first tap) ---------- */
+  var AC = null, soundOn = true;
+  try { soundOn = localStorage.getItem("dayzero.sound") !== "off"; } catch (e) {}
+  function ctx() {
+    if (!soundOn) return null;
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (AC.state === "suspended") { try { AC.resume(); } catch (e) {} }
+    return AC;
+  }
+  function tone(f, d, type, v, delay, f2) {
+    var c = ctx(); if (!c) return;
+    var t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.linearRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v || 0.05, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d + 0.05);
+  }
+  function noise(d, v, fc, delay) {
+    var c = ctx(); if (!c) return;
+    var t = c.currentTime + (delay || 0), n = Math.floor(c.sampleRate * d), buf = c.createBuffer(1, n, c.sampleRate), a = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var s = c.createBufferSource(); s.buffer = buf;
+    var f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = fc || 800;
+    var g = c.createGain(); g.gain.value = v || 0.2;
+    s.connect(f); f.connect(g); g.connect(c.destination); s.start(t);
+  }
+  var sfx = {
+    siren: function () { for (var k = 0; k < 3; k++) { tone(520, 0.8, "sawtooth", 0.035, k * 1.6, 880); tone(880, 0.8, "sawtooth", 0.035, k * 1.6 + 0.8, 520); } },
+    tick: function (hi) { tone(hi ? 1250 : 720, 0.06, "square", 0.03); },
+    boom: function () { noise(2.4, 0.5, 500); tone(60, 2, "sine", 0.25, 0, 28); },
+    pick: function () { tone(440, 0.07, "square", 0.025); },
+    hurt: function () { tone(150, 0.25, "sawtooth", 0.06, 0, 70); },
+    geiger: function (n) { for (var i = 0; i < n; i++) noise(0.012, 0.12, 6000, Math.random() * 1.6); },
+    sting: function (good) {
+      if (good) { tone(392, 0.5, "triangle", 0.06); tone(523, 0.5, "triangle", 0.06, 0.18); tone(659, 0.9, "triangle", 0.06, 0.36); }
+      else { tone(196, 0.7, "sawtooth", 0.05, 0, 98); tone(147, 1.2, "sawtooth", 0.05, 0.4, 73); }
+    }
+  };
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   var mSv = function (r) { return Math.round(r * 50); };
 
@@ -232,6 +288,8 @@ main { padding-top: 22px; }
     setBar("food", (S.food / 8) * 100, S.food <= 1 ? "bad" : S.food <= 3 ? "warn" : "ok");
     $("#v-hope").textContent = Math.round(S.hope) + "%";
     setBar("hope", S.hope, "neutral");
+    var inv = ITEMS.filter(function (it) { return S.f[it[0]]; }).map(function (it) { return '<span class="item">' + it[1] + "</span>"; });
+    $("#items").innerHTML = inv.length ? inv.join("") : '<span class="item none">ยังไม่มีของติดตัว</span>';
     var p = "";
     for (var k = 0; k < SC.length; k++) p += '<i class="' + (k <= S.i ? "on" : "") + '"></i>';
     $("#prog").innerHTML = p;
@@ -291,7 +349,7 @@ main { padding-top: 22px; }
         { t: "ลงบันไดไปชั้นจอดรถใต้ดิน B3 ใต้อาคาร", r: function () {
           return { txt: "คุณลงบันไดหนีไฟ 19 ชั้น ขาสั่นไปหมด แต่ถึงที่จอดรถชั้นลึกสุดตอนที่เสียงไซเรนเริ่มขาดช่วง คอนกรีตหนาเหนือหัวคือสิ่งที่ดีที่สุดที่คุณหาได้", d: { hp: -5 }, set: { shelter: "basement" } };
         } },
-        { t: "วิ่งไปสถานี MRT ที่อยู่ห่างออกไป 400 เมตร", show: function () { return !S.f.late; }, r: function () {
+        { t: "วิ่งไปสถานี MRT ที่อยู่ห่างออกไป 400 เมตร", lock: function () { return S.f.late ? "ไม่ทันแล้ว สถานีไกลเกินไป" : null; }, r: function () {
           return { txt: "คุณมาถึงทันก่อนประตูทางลงปิดเพียงนิดเดียว คนเป็นร้อยอัดกันอยู่ที่ชานชาลา ข้อศอกใครสักคนกระแทกซี่โครงคุณ แต่ที่นี่ลึกพอ", d: { hp: -10, hope: -5 }, set: { shelter: "mrt" } };
         } },
         { t: "อยู่ในห้อง ปิดม่าน แล้วนอนบนพื้นห้องน้ำ", r: function () {
@@ -357,17 +415,18 @@ main { padding-top: 22px; }
         } }
       ]
     },
+    { pick: true },
     {
       when: "วันที่ 3 · 06:00", place: "ที่หลบภัย", day: 3,
       text: function () {
         return "ผ่านมา 48 ชั่วโมงแล้ว ข้างนอกยังเงียบกริบ น้ำและอาหารของคุณลดลงเรื่อย ๆ" + (S.f.ally ? " เด็กน้อยถามซ้ำ ๆ ว่าเมื่อไหร่แม่จะมารับ" : "") + "\n\nถึงเวลาตัดสินใจว่าจะใช้วันนี้ทำอะไร";
       },
       choices: [
-        { t: "ไขวิทยุจับสัญญาณประกาศของทางการ", show: function () { return S.f.radio; }, r: function () {
+        { t: "ไขวิทยุจับสัญญาณประกาศของทางการ", lock: function () { return S.f.radio ? null : "ต้องมีวิทยุไขลาน"; }, r: function () {
           return { txt: "ผ่านเสียงซ่าไปสามสิบนาที คุณก็จับได้: \"ศูนย์พักพิงพลเรือนเปิดทางเหนือ ห่างไป 60 กิโลเมตร เปิดรับถึงวันที่ 10 ขอให้อพยพตามเส้นทางที่กำหนด\" นี่คือสัญญาณแรกที่บอกว่ายังมีคนจัดการอยู่", d: { food: -1, hope: 15 }, set: { knows: 1 } };
         } },
         { t: "ออกไปค้นห้างใกล้ ๆ หาของกินก่อนที่คนอื่นจะเอาไปหมด", r: function () {
-          return { txt: "คุณสวมหน้ากากผ้า ลุยฝุ่นไปที่ซูเปอร์มาร์เก็ตเล็ก ๆ ได้อาหารกระป๋องกับน้ำมาหลายวัน แต่รองเท้าและกางเกงเต็มไปด้วยเถ้าสีเทา", d: { food: 3, rad: 12, hope: 5 }, set: { looted: 1 } };
+          return { txt: "คุณสวมหน้ากากผ้า ลุยฝุ่นไปที่ซูเปอร์มาร์เก็ตเล็ก ๆ ได้อาหารกระป๋องกับน้ำมาหลายวัน แต่รองเท้าและกางเกงเต็มไปด้วยเถ้าสีเทา", d: { food: 2 + Math.floor(Math.random() * 3), rad: 12, hope: 5 }, set: { looted: 1 } };
         } },
         { t: "นอนพัก ประหยัดแรงและความหวัง", r: function () {
           return { txt: "คุณหลับยาวและกินน้อยที่สุดเท่าที่ทำได้ ร่างกายบอกขอบคุณ ส่วนความหวังยังเบาบางเหมือนเดิม", d: { food: -1, hp: 10, hope: 5 } };
@@ -382,7 +441,7 @@ main { padding-top: 22px; }
           : "คุณปวดหัวตุบ ๆ และท้องเสียตั้งแต่เช้า อาจเป็นเพราะความเครียดหรือน้ำที่ไม่สะอาด แต่ไม่มีใครบอกได้ว่ามันคืออะไรกันแน่";
       },
       choices: [
-        { t: "ใช้ชุดปฐมพยาบาล ดื่มเกลือแร่ แล้วนอนพัก", show: function () { return S.f.kit; }, r: function () {
+        { t: "ใช้ชุดปฐมพยาบาล ดื่มเกลือแร่ แล้วนอนพัก", lock: function () { return S.f.kit ? null : "ต้องมีชุดปฐมพยาบาล"; }, r: function () {
           return { txt: "เกลือแร่กับยาแก้อาเจียนเอาอยู่ ชีพจรคุณนิ่งขึ้น คุณขอบคุณตัวเองที่ยอมเสี่ยงขึ้นไปเอามันมา", d: { hp: 20, food: -1, hope: 5 } };
         } },
         { t: "ถอดเสื้อผ้าชั้นนอกที่ติดฝุ่นทิ้ง อาบน้ำและล้างผมให้สะอาด", r: function () {
@@ -406,7 +465,7 @@ main { padding-top: 22px; }
       },
       choices: [
         { t: function () { return S.f.knows ? "ออกเดินทางไปศูนย์พักพิงทางเหนือ" : "เดินตามป้ายอพยพขึ้นเหนือ (ไม่แน่ใจว่าปลายทางมีอะไร)"; }, r: function () {
-          return { txt: "สามวันบนถนนที่เงียบสนิท คุณเดินผ่านรถที่คนยังนั่งอยู่ในนั้น และพยายามไม่หันไปมอง เท้าพองหมด แต่ได้เห็นควันจากปล่องไกล ๆ ไกลออกไป", d: { food: -3, rad: 8, hp: -10, cause: "starve" }, set: { route: "go" } };
+          return { txt: "สามวันบนถนนที่เงียบสนิท คุณเดินผ่านรถที่คนยังนั่งอยู่ในนั้น และพยายามไม่หันไปมอง เท้าพองหมด แต่ได้เห็นควันจากปล่องไกล ๆ ไกลออกไป", d: { food: S.f.filter ? -2 : -3, rad: 8, hp: -10, cause: "starve" }, set: { route: "go" } };
         } },
         { t: "ปักหลักอยู่ที่นี่ ต้มน้ำ กรองน้ำฝน และปลูกผักในกระถาง", r: function () {
           return { txt: "คุณเปลี่ยนชั้นจอดรถให้เป็นบ้านหลังเล็ก ๆ ปิดช่องลม มีที่เก็บน้ำ มีมุมหลับ ชีวิตช้าลงเหมือนกับคนที่ตัดสินใจจะอยู่", d: { food: -1, hope: 5, rad: 3 }, set: { route: "stay" } };
@@ -426,8 +485,8 @@ main { padding-top: 22px; }
           return { txt: "พวกเขารับของไปโดยไม่พูดอะไรสักคำ แล้วเดินจากไป คุณยืนสั่นอยู่พักใหญ่ แต่ไม่มีใครเจ็บ", d: { food: -give, hope: -5 } };
         } },
         { t: "สู้กลับ", r: function () {
-          return S.hp >= 60
-            ? { txt: "คุณฟาดไปที่หัวเข่าคนแรก แล้วโวยเสียงดังพอให้ทั้งกลุ่มถอย คุณชนะ แต่ฝ่ามือคุณสั่นอยู่นานหลังจากนั้น", d: { hp: -20, hope: -5, cause: "violence" } }
+          return S.hp >= (S.f.dog ? 45 : 60)
+            ? { txt: (S.f.dog ? "สุนัขที่ตามคุณมาพุ่งเข้าใส่ขาคนแรกพร้อมเสียงเห่าลั่น " : "") + "คุณฟาดไปที่หัวเข่าคนแรก แล้วโวยเสียงดังพอให้ทั้งกลุ่มถอย คุณชนะ แต่ฝ่ามือคุณสั่นอยู่นานหลังจากนั้น", d: { hp: -20, hope: -5, cause: "violence" } }
             : { txt: "ร่างกายคุณอ่อนล้าเกินกว่าจะสู้ พวกเขาล้มคุณลงกับพื้น แล้วเอาทุกอย่างในกระเป๋าไปจนหมด", d: { hp: -50, food: -S.food, hope: -15, cause: "violence" } };
         } },
         { t: "หลบซ่อน ปล่อยให้เขาเดินผ่านไป", r: function () {
@@ -435,7 +494,10 @@ main { padding-top: 22px; }
             ? { txt: "เด็กน้อยกลั้นไม่อยู่และไอออกมาเสียงดัง พวกเขาหันกลับมาทันที การกระชากและหนีทำให้คุณได้แผลเต็มตัว", d: { hp: -15, hope: -10, cause: "violence" } }
             : { txt: "คุณกลั้นหายใจอยู่หลังเสาจนเสียงฝีเท้าหายไป ฝุ่นที่ซุกอยู่ทำให้ปอดคุณแสบ แต่ไม่มีใครรู้ว่าคุณอยู่ตรงนั้น", d: { rad: 5, hope: -3 } };
         } },
-        { t: "ชวนพวกเขาไปด้วยกัน \"คนเดียวไม่รอดหรอก\"", show: function () { return S.hope >= 45; }, r: function () {
+        { t: "ให้พ่อของเด็กออกไปเจรจา (เขาเคยเป็นอาสาสมัครกู้ภัย)", lock: function () { return S.f.ally ? null : "คุณไม่มีใครช่วยพูดแทน"; }, r: function () {
+          return { txt: "ชายขาเจ็บเดินออกไปช้า ๆ ยกสองมือขึ้น แล้วพูดด้วยน้ำเสียงของคนที่เคยเจอเรื่องหนักกว่านี้มาแล้ว ท่อนเหล็กค่อย ๆ ลดลง พวกเขาเดินจากไปโดยไม่มีใครบาดเจ็บ ความใจดีที่คุณให้ไว้คืนนั้นกลับมาหาคุณ", d: { hope: 10 } };
+        } },
+        { t: "ชวนพวกเขาไปด้วยกัน \"คนเดียวไม่รอดหรอก\"", lock: function () { return S.hope >= 45 ? null : "ขวัญกำลังใจต่ำเกินไป คุณยังไว้ใจใครไม่ได้"; }, r: function () {
           return { txt: "ผ่านความเงียบยาวนานสักพัก ชายคนหนึ่งลดท่อนเหล็กลง \"ก็ได้ แต่พวกเราหิวมาสามวันแล้ว\" คุณแบ่งอาหารให้ทุกคน และไม่ได้เดินทางคนเดียวอีกต่อไป", d: { food: -2, hope: 15 }, set: { group: 1 } };
         } }
       ],
@@ -458,6 +520,73 @@ main { padding-top: 22px; }
         } },
         { t: "เก็บไว้ให้ตัวเอง", r: function () {
           return { txt: "คุณกอดกระเป๋าไว้แน่น ไม่มีใครว่าอะไร แต่สายตาของคนรอบข้างไม่เหมือนเดิมแล้ว", d: { hope: -10 }, set: { kept: 1 } };
+        } }
+      ]
+    }
+  ];
+
+  /* one of these is drawn at random each run, so no two playthroughs match */
+  var ITEMS = [["radio", "วิทยุไขลาน"], ["kit", "ชุดปฐมพยาบาล"], ["filter", "ชุดกรองน้ำ"], ["ally", "เด็กหญิงกับพ่อ"], ["dog", "สุนัขจร"], ["group", "ชายแปลกหน้า 3 คน"]];
+  var EVENTS = [
+    {
+      when: "วันที่ 2 · 15:20", place: "ที่หลบภัย", day: 2,
+      text: function () { return "เสียงเม็ดฝนกระทบปล่องระบายอากาศ ข้างนอกฝนตกแล้ว แต่น้ำที่ไหลเป็นทางตามถนนมีสีเทาดำ\n\nน้ำของคุณลดลงทุกวัน ส่วนฝนนี้อาจพาฝุ่นรังสีลงมาด้วย"; },
+      choices: [
+        { t: "รองน้ำฝนไว้ดื่ม ต้มก่อนก็น่าจะพอ", r: function () {
+          return { txt: "น้ำเต็มสามถัง แต่การต้มไม่ได้ช่วยเอาสารกัมมันตรังสีออก คุณรู้ดีแต่ก็ยังกลืนมันลงไป เพราะกระหายเกินกว่าจะเลือก", d: { food: 2, rad: 12, hope: 3 } };
+        } },
+        { t: "ขึงผ้าใบเก็บน้ำควบแน่นจากท่อแอร์ภายในตึก", r: function () {
+          return { txt: "คุณใช้เวลาครึ่งวันกับท่อน้ำทิ้งในตึก ได้น้อยแต่สะอาดกว่ามาก ร่างกายคุณยังพอไหว", d: { food: 1, hope: -3 } };
+        } },
+        { t: "ไม่แตะน้ำข้างนอก ทนอยู่กับที่ที่มี", r: function () {
+          return { txt: "คุณกัดฟันปล่อยน้ำฝนไหลลงท่อไป ปากแห้งผากแต่ร่างกายสะอาด", d: { food: -1, hp: -3, cause: "starve" } };
+        } }
+      ]
+    },
+    {
+      when: "วันที่ 2 · 20:45", place: "ปากทางเข้า", day: 2,
+      text: function () { return "มีเสียงล้มดังตุ้บที่ปากทางเข้า ชายคนหนึ่งผิวไหม้ลอกเป็นแผ่นนอนอยู่ตรงนั้น เขาพึมพำขอน้ำด้วยเสียงแหบแห้ง\n\nเขายังหายใจอยู่ แต่ไม่รู้ว่าจะอยู่ได้อีกนานแค่ไหน"; },
+      choices: [
+        { t: "ใช้ชุดปฐมพยาบาลทำแผลให้เขา", lock: function () { return S.f.kit ? null : "ต้องมีชุดปฐมพยาบาล"; }, r: function () {
+          return { txt: "คุณล้างแผลและพันผ้าให้เท่าที่มี เขาจับมือคุณไว้แล้วหลับไป เช้าวันถัดมา ที่นอนของเขาว่างเปล่า แต่มีขวดน้ำสองใบวางไว้ให้คุณ", d: { hope: 15, food: 2 } };
+        } },
+        { t: "ลากเข้ามาข้างใน ให้น้ำและพักอยู่กับคุณคืนหนึ่ง", r: function () {
+          return { txt: "คุณแบ่งน้ำให้เขาและนั่งเฝ้า ผิวเขาเปื้อนฝุ่นจนคุณต้องล้างมือหลายรอบ เช้าวันถัดมาเขาลุกเดินไปเงียบ ๆ ก่อนที่จะรู้ว่าชื่ออะไร", d: { food: -1, hope: 10, rad: 5, hp: -3, cause: "rad" } };
+        } },
+        { t: "ปิดประตู ไม่ยุ่ง", r: function () {
+          return { txt: "คุณยืนหลังบานประตูเหล็กจนเสียงคราง ๆ ข้างนอกหายไป คุณบอกตัวเองว่าไม่มีทางเลือกอื่น และจะไม่พูดถึงมันอีก", d: { hope: -15 } };
+        } }
+      ]
+    },
+    {
+      when: "วันที่ 2 · 09:10", place: "ที่หลบภัย", day: 2,
+      text: function () { return "มีบางอย่างขยับอยู่หลังกองลังกระดาษ สุนัขจรตัวผอมโซ ขนสกปรกเป็นหย่อม ๆ กำลังมองคุณด้วยตาที่ไม่ไว้ใจเท่าไร\n\nมันดูเหมือนไม่ได้กินอะไรมาหลายวัน"; },
+      choices: [
+        { t: "แบ่งอาหารหนึ่งวันให้มันกิน", r: function () {
+          return { txt: "มันกินเร็วจนคุณกลัวว่ามันจะสำลัก แล้วมานั่งข้างเท้าคุณโดยไม่ได้ขออะไรเพิ่ม เป็นครั้งแรกในรอบหลายวันที่คุณรู้สึกว่าไม่ได้อยู่คนเดียว", d: { food: -1, hope: 15 }, set: { dog: 1 } };
+        } },
+        { t: "ไล่มันไปก่อนที่จะเสียเสบียง", r: function () {
+          return { txt: "มันหายเข้าไปในความมืดโดยไม่ส่งเสียง คุณประหยัดเสบียงไว้ได้ แต่ไม่มีเรื่องอะไรให้ดีใจ", d: { hope: -5 } };
+        } },
+        { t: "ปล่อยไว้ ไม่ยุ่ง", r: function () {
+          return { txt: "ทั้งคุณและมันต่างเงียบ ผ่านไปหลายชั่วโมงมันก็หายไปเอง", d: { hope: -3 } };
+        } }
+      ]
+    },
+    {
+      when: "วันที่ 2 · 17:00", place: "ทางเข้าที่หลบภัย", day: 2,
+      text: function () { return "ชายแปลกหน้าคนหนึ่งสะพายถุงกระสอบและยืนห่างจากประตูพอที่จะไม่ถูกมองว่าคุกคาม ในมือถือชุดกรองน้ำพกพาที่ยังไม่แกะ\n\n\"แลกกับอาหารสองวัน\" เขาพูด \"ฉันไม่มีเวลาต่อรอง\""; },
+      choices: [
+        { t: "แลกอาหารสองวันกับชุดกรองน้ำ", lock: function () { return S.food >= 2 ? null : "เสบียงไม่พอ (ต้องมีอย่างน้อย 2 วัน)"; }, r: function () {
+          return { txt: "เขาพยักหน้า วางชุดกรองลงตรงหน้าคุณแล้วเดินจากไปโดยไม่หันกลับมา ชุดนี้จะทำให้การเดินทางและการอยู่ต่อง่ายขึ้นมาก", d: { food: -2, hope: 5 }, set: { filter: 1 } };
+        } },
+        { t: "ปฏิเสธ ปิดประตู", r: function () {
+          return { txt: "เขายักไหล่แล้วเดินต่อไป คุณปล่อยให้โอกาสผ่านไป เสบียงยังอยู่ครบ", d: { hope: -3 } };
+        } },
+        { t: "ข่มขู่ ยึดชุดกรองน้ำไปเลย", r: function () {
+          return S.hp >= 60
+            ? { txt: "เขาถอยไปก้าวหนึ่ง มองคุณนานแล้ววางของลงโดยไม่พูดอะไร คุณได้ชุดกรองน้ำมา แต่ก็รู้ดีว่าตัวเองเพิ่งทำอะไรลงไป", d: { hope: -15, hp: -10, cause: "violence" }, set: { filter: 1 } }
+            : { txt: "ชายคนนั้นแข็งแรงกว่าที่คุณคิด เขากระชากคุณล้มลงกับพื้นก่อนจะเก็บของเดินจากไป คุณนอนหายใจหอบอยู่หน้าประตู", d: { hp: -30, hope: -10, cause: "violence" } };
         } }
       ]
     }
@@ -500,47 +629,69 @@ main { padding-top: 22px; }
       '<h1 class="title">DAY <span>ZERO</span></h1>' +
       '<p class="sub">ถ้าสงครามโลกครั้งที่ 3 เริ่มขึ้นเช้านี้ คุณจะรอดไหม</p>' +
       '<ul class="rules">' +
-      '<li>10 ฉาก ใช้เวลาประมาณ 4 นาที</li>' +
-      '<li>บางการตัดสินใจมีเวลาจำกัด ถ้าคุณลังเล ชีวิตจะเลือกแทน</li>' +
-      '<li>มีฉากจบ 7 แบบ แต่ละการเลือกเปลี่ยนโอกาสรอดของคุณ</li>' +
+      '<li>11 ฉาก ใช้เวลาประมาณ 4-5 นาที มีเหตุการณ์สุ่มทุกครั้งที่เล่น</li>' +
+      '<li>บางฉากมีเวลาจำกัด แต่คุณอ่านก่อนได้ เวลาเริ่มนับตอนกด "พร้อมแล้ว"</li>' +
+      '<li>ของที่เก็บได้ระหว่างทางปลดล็อกตัวเลือกใหม่ในภายหลัง</li>' +
+      '<li>ฉากจบ 7 แบบ พร้อมเรตติ้ง S ถึง D</li>' +
       '</ul>' +
       '<div class="btns"><button class="btn" id="start">เริ่มเกม</button></div>';
     $("#start").addEventListener("click", function () { S.i = 0; scene(); });
     $("#start").focus({ preventScroll: true });
   }
 
-  var currentChoices = [];
+  /* A timed scene first shows the story with a "ready" button.
+     Choices and the countdown only appear after the player presses it. */
   function scene() {
     stopTimer();
-    var sc = SC[S.i];
+    var sc = cur();
     S.day = sc.day;
     hud();
-    var list = sc.choices.filter(function (c) { return !c.show || c.show(S); });
-    currentChoices = list;
-    var html = head(sc) + '<div class="story">' + paras(sc.text(S)) + "</div>";
+    if (S.i === 0) sfx.siren();
+    else if (S.rad >= 5) sfx.geiger(Math.min(16, 2 + Math.round(S.rad / 5)));
+    var story = head(sc) + '<div class="story">' + paras(sc.text(S)) + "</div>";
     if (sc.timer) {
-      html += '<div class="timer"><div class="tt"><div class="tf" id="tf"></div></div><div class="tl" id="tl">' + sc.timer + "</div></div>";
+      stage.innerHTML = story +
+        '<div class="ready"><span>ฉากนี้มีเวลาจำกัด ' + sc.timer + ' วินาที อ่านข้อความด้านบนให้จบก่อน แล้วกดเมื่อพร้อม</span>' +
+        '<button class="btn" id="go">พร้อมแล้ว · เริ่มจับเวลา</button></div>';
+      $("#go").addEventListener("click", function () { showChoices(sc, story); });
+      $("#go").focus({ preventScroll: true });
+    } else {
+      showChoices(sc, story);
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function showChoices(sc, story) {
+    var list = sc.choices;
+    var html = story;
+    if (sc.timer) {
+      html += '<div class="timer" id="timer"><div class="tt"><div class="tf" id="tf"></div></div><div class="tl" id="tl">' + sc.timer + "</div></div>";
     }
     html += '<div class="choices">' + list.map(function (c, n) {
       var label = typeof c.t === "function" ? c.t() : c.t;
-      return '<button class="choice" data-n="' + n + '"><span class="key">' + (n + 1) + "</span><span>" + label + "</span></button>";
+      var why = c.lock ? c.lock(S) : null;
+      return '<button class="choice" data-n="' + n + '"' + (why ? " disabled" : "") + '><span class="key">' + (n + 1) + "</span><span>" + label +
+        (why ? '<span class="lock">ล็อก · ' + why + "</span>" : "") + "</span></button>";
     }).join("") + "</div>";
     stage.innerHTML = html;
     Array.prototype.forEach.call(stage.querySelectorAll(".choice"), function (b) {
       b.addEventListener("click", function () { choose(list[+b.getAttribute("data-n")], false); });
     });
     if (sc.blast) {
+      sfx.boom();
       var fl = $("#flash"); fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
     }
-    window.scrollTo(0, 0);
     if (sc.timer) {
-      var total = sc.timer * 1000, t0 = Date.now();
+      var total = sc.timer * 1000, t0 = Date.now(), lastSec = sc.timer;
       timerId = setInterval(function () {
         var left = total - (Date.now() - t0);
         var tf = $("#tf"), tl = $("#tl");
         if (!tf) { stopTimer(); return; }
         tf.style.width = clamp(left / total * 100, 0, 100) + "%";
-        tl.textContent = Math.max(0, Math.ceil(left / 1000));
+        var sec = Math.max(0, Math.ceil(left / 1000));
+        tl.textContent = sec;
+        if (sec !== lastSec && sec > 0) { lastSec = sec; sfx.tick(sec <= 3); }
+        if (sec <= 3) $("#timer").classList.add("urgent");
         if (left <= 0) { stopTimer(); choose(sc.timeout, true); }
       }, 100);
     }
@@ -548,13 +699,15 @@ main { padding-top: 22px; }
 
   function choose(c, timedOut) {
     stopTimer();
-    var sc = SC[S.i];
+    var sc = cur();
+    sfx.pick();
     var res = c.r(S);
     if (res.set) for (var k in res.set) S.f[k] = res.set[k];
     var diff = apply(res.d);
     hud();
     if (diff.hp < -3 || diff.rad >= 8) {
       app.classList.remove("shake"); void app.offsetWidth; app.classList.add("shake");
+      sfx.hurt();
     }
     var dead = isDead();
     var label = typeof c.t === "function" ? c.t() : c.t;
@@ -582,10 +735,14 @@ main { padding-top: 22px; }
       else if (S.f.kept) extra += " คุณมีเสบียงเก็บไว้ แต่คืนนี้คุณนอนหลับไม่สนิทเหมือนเดิม";
       if (S.f.ally) extra += " เด็กหญิงที่คุณเปิดประตูให้ยังจับมือคุณไว้ตลอดทาง";
       if (S.f.group) extra += " กลุ่มคนที่คุณชวนมาด้วยกัน กลายเป็นครอบครัวชั่วคราว";
+      if (S.f.dog) extra += " สุนัขตัวผอมนอนขดอยู่ที่เท้าคุณ มันหนักขึ้นเล็กน้อยตั้งแต่วันแรกที่เจอกัน";
     }
+    var pts = S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (id === "shelter" || id === "community" ? 15 : 0);
+    var rk = dead ? "D" : pts >= 85 ? "S" : pts >= 70 ? "A" : pts >= 55 ? "B" : "C";
+    sfx.sting(!dead);
     var o = dead ? "—" : "1 ใน " + odds();
     var pips = ORDER.map(function (k) { return '<i class="' + (seen.indexOf(k) >= 0 ? "on" : "") + '"></i>'; }).join("");
-    var shareText = "Day Zero: " + e.title + " · รอดมา " + S.day + " วัน · โอกาสรอด " + o + " ลองเล่นดูไหม";
+    var shareText = "Day Zero: " + e.title + " · เรตติ้ง " + rk + " · รอดมา " + S.day + " วัน · โอกาสรอด " + o + " ลองเล่นดูไหม";
     stage.innerHTML =
       '<div class="end-kind ' + e.kind + '">' + (dead ? "จบเกม · ไม่รอด" : "จบเกม · รอดชีวิต") + "</div>" +
       '<h2 class="end-title">' + e.title + "</h2>" +
@@ -595,6 +752,7 @@ main { padding-top: 22px; }
       '<div><div class="k">รังสีสะสม</div><div class="v">' + mSv(S.rad).toLocaleString("en") + " mSv</div></div>" +
       '<div><div class="k">สุขภาพ</div><div class="v">' + Math.round(S.hp) + "%</div></div>" +
       '<div><div class="k">โอกาสรอด (ตามเกม)</div><div class="v odds-v">' + o + "</div></div>" +
+      '<div><div class="k">เรตติ้ง</div><div class="v odds-v">' + rk + "</div></div>" +
       "</div>" +
       '<div class="real"><h3>ถ้าเกิดเรื่องจริง</h3><ul>' +
       "<li>เข้าอาคารที่แข็งแรงทันที ไปที่ห้องตรงกลางตึกหรือใต้ดิน ไกลจากหน้าต่าง</li>" +
@@ -626,6 +784,16 @@ main { padding-top: 22px; }
       if (btns[n - 1]) btns[n - 1].click();
     }
   });
+
+  var sndBtn = $("#snd");
+  function paintSnd() { sndBtn.setAttribute("aria-pressed", soundOn ? "true" : "false"); sndBtn.textContent = soundOn ? "เสียง เปิด" : "เสียง ปิด"; }
+  sndBtn.addEventListener("click", function () {
+    soundOn = !soundOn;
+    try { localStorage.setItem("dayzero.sound", soundOn ? "on" : "off"); } catch (e) {}
+    paintSnd();
+    if (soundOn) sfx.pick();
+  });
+  paintSnd();
 
   intro();
 })();
