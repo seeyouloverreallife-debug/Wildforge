@@ -159,6 +159,14 @@ main { padding-top: 22px; }
 .mapsvg .t-big { font: 700 20px var(--f-mono); fill: var(--signal); }
 .mapsvg .t-bad { font: 600 12px var(--f-body); fill: var(--alarm); }
 .mapsvg .t-ok { font: 600 12px var(--f-body); fill: var(--ok); }
+.s-ok { stroke: var(--ok); fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.s-alarm2 { stroke: var(--alarm); fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.s-bone, .s-signal { stroke-linejoin: round; }
+.pick { margin-top: 18px; font-size: 14px; color: var(--dim); }
+.pick summary { cursor: pointer; padding: 6px 0; }
+.pick .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.pick .row button { font: inherit; font-size: 14px; background: var(--panel); color: var(--bone); border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; }
+.pick .row button:hover { border-color: var(--signal); }
 .mapsvg .t-sm { font: 10px var(--f-mono); fill: var(--dim); }
 .item.bad { color: var(--alarm); border-color: #6a2e25; }
 .namerow { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
@@ -248,9 +256,9 @@ main { padding-top: 22px; }
   var S, timerId = null;
 
   var lastChar = null;
-  function fresh() {
+  function fresh(id) {
     var pool = CHARS.filter(function (c) { return c.id !== lastChar; });
-    var c = pool[Math.floor(Math.random() * pool.length)];
+    var c = id ? CHARS.filter(function (x) { return x.id === id; })[0] : pool[Math.floor(Math.random() * pool.length)];
     lastChar = c.id;
     var f = {};
     for (var k in c.items) f[k] = c.items[k];
@@ -260,7 +268,7 @@ main { padding-top: 22px; }
     var rf = inPlume ? 1.8 - Math.min(c.gz, 150) / 150 * 0.8 : (c.gz <= 6 ? 0.5 : 0.3);
     var evs = EVENTS.filter(function (e) { return !e.only || e.only.indexOf(c.type) >= 0; });
     return { hp: c.hp, rad: 0, food: c.food, hope: c.hope, cause: "starve", f: f, i: 0, day: 0, char: c,
-      wind: wind, inPlume: inPlume, rf: rf, bf: blastFactor(c.gz), karma: 0, log: [], evObj: evs[Math.floor(Math.random() * evs.length)], evObj2: EVENTS2[Math.floor(Math.random() * EVENTS2.length)] };
+      wind: wind, inPlume: inPlume, rf: rf, bf: blastFactor(c.gz), karma: 0, log: [], hist: [{ day: 0, hp: c.hp, rad: 0, food: c.food, hope: c.hope }], evObj: evs[Math.floor(Math.random() * evs.length)], evObj2: EVENTS2[Math.floor(Math.random() * EVENTS2.length)] };
   }
   function blastFactor(gz) { return gz <= 3 ? 1.6 : gz <= 6 ? 1.3 : gz <= 10 ? 1 : gz <= 20 ? 0.75 : gz <= 50 ? 0.4 : 0.15; }
   function angDiff(a, b) { var d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
@@ -725,19 +733,20 @@ main { padding-top: 22px; }
       when: "วันที่ 6 · 05:30", place: "หน้าทางออกที่หลบภัย", day: 6, art: "road",
       text: function () {
         return (S.f.knows
-          ? "วิทยุยังเตือนซ้ำ ๆ ว่าศูนย์พักพิงจะเปิดรับถึงวันที่ 10 ห่างไป " + S.char.dist + " กิโลเมตร" + S.char.dir + " ถนนเต็มไปด้วยซากรถ" + (S.f.bike ? " แต่มอเตอร์ไซค์ของคุณยังลอดผ่านได้" : S.f.boat ? " แต่เรือของคุณยังแล่นเลียบชายฝั่งได้" : S.f.slow ? " และขาของคุณแทบจะไปไม่ไหว" : " ต้องเดินเท้า")
+          ? "วิทยุยังเตือนซ้ำ ๆ ว่าศูนย์พักพิงจะเปิดรับถึงวันที่ 10 ห่างไป " + S.char.dist + " กิโลเมตร" + S.char.dir + " ถนนเต็มไปด้วยซากรถ" + (S.f.bike ? " แต่มอเตอร์ไซค์ของคุณยังลอดผ่านได้" : S.f.boat ? " แต่เรือของคุณยังแล่นเลียบชายฝั่งได้" : (S.f.slow || S.f.wheel) ? (S.f.wheel ? " และวีลแชร์ของคุณเข็นผ่านเศษซากไม่ไหว" : " และขาของคุณแทบจะไปไม่ไหว") : " ต้องเดินเท้า")
           : "คุณไม่มีข้อมูลจากทางการ เห็นแต่ป้ายอพยพที่ใครสักคนพ่นสีไว้ชี้ไป" + S.char.dir)
           + "\n\nเสบียงที่เหลือพอสำหรับราว " + S.food + " วัน คุณต้องเลือกว่าจะไปหรืออยู่";
       },
       choices: [
         { t: function () { return S.f.knows ? "ออกเดินทางไปศูนย์พักพิง" + S.char.dir : "เดินตามป้ายอพยพไป" + S.char.dir + " (ไม่แน่ใจว่าปลายทางมีอะไร)"; }, r: function () {
           var fast = S.f.bike || S.f.boat;
-          var dist = S.char.dist, cost = Math.max(1, (dist >= 100 ? 4 : dist >= 55 ? 3 : 2) - (S.f.filter ? 1 : 0) - (fast ? 1 : 0) + (S.f.slow ? 1 : 0));
+          var dist = S.char.dist, cost = Math.max(1, (dist >= 100 ? 4 : dist >= 55 ? 3 : 2) - (S.f.filter ? 1 : 0) - (fast ? 1 : 0) + ((S.f.slow || S.f.wheel) ? 1 : 0));
           var how = S.f.bike ? "คุณขี่มอเตอร์ไซค์ซิกแซกผ่านซากรถที่ไม่มีใครขยับมาหลายวัน น้ำมันเหลือน้อยกว่าที่คิด แต่ระยะทางหดลงเร็วกว่าเดินเท้ามาก"
             : S.f.boat ? "คุณแล่นเรือเลียบชายฝั่งผ่านซากเรือและขยะที่ลอยเกลื่อนผิวน้ำ น้ำมันหมดไปเกินครึ่ง แต่คุณไม่ต้องเดินสักก้าว"
+            : S.f.wheel ? "คุณเข็นวีลแชร์ผ่านถนนที่เต็มไปด้วยเศษซาก ล้อติดหลุมสามครั้ง ทุกครั้งมีคนแปลกหน้าที่ไม่เคยเจอกันเข้ามาช่วยยกข้ามโดยไม่พูดอะไรสักคำ แล้วก็จากไป มือคุณพองจากการเข็นไปหมด"
             : S.f.slow ? "คุณเดินทีละไม่กี่ร้อยเมตรแล้วนั่งพัก ใช้ไม้ท่อนหนึ่งเป็นไม้เท้า คนที่ผ่านมาบางคนช่วยพยุงแล้วก็จากไป ทุกก้าวเจ็บ แต่คุณไม่ยอมหยุด"
             : "หลายวันบนถนนที่เงียบสนิท คุณเดินผ่านรถที่คนยังนั่งอยู่ในนั้น และพยายามไม่หันไปมอง เท้าพองหมด";
-          return { txt: how + " ก่อนจะเห็นควันจากปล่องไกลออกไป", d: { food: -cost, rad: 8, hp: (fast ? -3 : -10) - (S.f.injury ? 5 : 0) - (S.f.slow ? 8 : 0), cause: "starve" }, set: { route: "go" } };
+          return { txt: how + " ก่อนจะเห็นควันจากปล่องไกลออกไป", d: { food: -cost, rad: 8, hp: (fast ? -3 : -10) - (S.f.injury ? 5 : 0) - ((S.f.slow || S.f.wheel) ? 8 : 0), cause: "starve" }, set: { route: "go" } };
         } },
         { t: "ปักหลักอยู่ที่เดิม ต้มน้ำ กรองน้ำ และหาของกินเท่าที่หาได้", r: function () {
           var land = S.f.farm || S.f.boat;
@@ -963,6 +972,20 @@ main { padding-top: 22px; }
         { t: "วิ่งไปรวมกับคนทั้งหมู่บ้านที่มัสยิดคอนกรีตหลังใหญ่", tier: "mid", d: { hp: -8, hope: -3 }, txt: "ในมัสยิดมีคนเกือบพันคน ผู้อาวุโสคนหนึ่งยืนกลางห้องแล้วกล่าวสั้น ๆ ให้ทุกคนใจเย็น ความเงียบที่ตามมาไม่ใช่ความเงียบของความกลัว แต่เป็นของการยอมรับ" },
         { t: "ออกเรือไปกลางอ่าว ห่างจากฝั่งให้มากที่สุด", tier: "weak", d: { hope: -5 }, txt: "คุณเร่งเครื่องออกไปจนฝั่งเหลือแค่เส้นบาง ๆ กลางทะเลไม่มีอะไรบังเลย คุณทำได้แค่ก้มหน้าอยู่ใต้หลังคาเรือและหวังว่าความห่างจะพอ" }
       ]
+    },
+    {
+      id: "ton", name: "ต้น", gender: "ชาย", age: 34, job: "นักออกแบบกราฟิกฟรีแลนซ์ (ใช้วีลแชร์)", province: "นครราชสีมา",
+      place: "ทาวน์เฮาส์สองชั้น · ตัวเมืองโคราช", cls: "ชนชั้นกลาง ทำงานที่บ้าน",
+      hp: 90, food: 2, hope: 65, items: { radio: 1, wheel: 1 }, who: "พี่สาวที่อยู่กรุงเทพฯ", dist: 45, dir: "ทางเหนือ",
+      perk: "เก่งเทคโนโลยี มีวิทยุสื่อสารและแบตสำรอง ได้ข้อมูลจากทางการเร็วกว่าคนอื่น", flaw: "ทางลงใต้ดินส่วนใหญ่เป็นบันไดเข้าไม่ได้ ต้องพึ่งคนช่วย และเดินทางไกลยากมาก",
+      alert: "คุณกำลังนั่งทำโลโก้ให้ลูกค้าอยู่หน้าจอสองจอในห้องทำงานชั้นหนึ่งของทาวน์เฮาส์ วีลแชร์จอดชิดโต๊ะ แล้วการแจ้งเตือนก็เด้งขึ้นมาบนจอทั้งสองพร้อมกัน",
+      tail: "และบันไดขึ้นชั้นสองคือสิ่งที่คุณขึ้นไม่ได้มาห้าปีแล้ว",
+      shelterIntro: "คุณอยู่ลำพังในบ้าน ทางเดินแคบ ประตูหน้าอยู่ไกลสิบเมตร และจะไม่มีใครมาเคาะเรียกถ้าคุณไม่ตะโกนเอง",
+      shelters: [
+        { t: "ตะโกนเรียกเพื่อนบ้านให้มาช่วยแบกลงห้องใต้ดินของบ้านข้าง ๆ", tier: "deep", late: true, d: { hp: -4 }, txt: "เด็กหนุ่มสองคนจากบ้านข้างวิ่งมาโดยไม่ถามอะไรสักคำ คนหนึ่งแบกคุณ อีกคนหิ้ววีลแชร์ ลงบันไดแคบ ๆ ไปห้องใต้ดินที่เต็มไปด้วยกล่องเก่า คุณพูดได้แค่คำว่า ขอบคุณ ซ้ำ ๆ" },
+        { t: "เข็นวีลแชร์ไปศูนย์ชุมชนคอนกรีตชั้นเดียวปลายซอย ที่มีทางลาดครบ", tier: "mid", late: true, d: { hp: -8, hope: -3 }, txt: "ทางลาดทุกจุดที่ชุมชนช่วยกันทำเมื่อปีก่อนกลายเป็นทางหนีของคุณ มือคุณแสบจากการเข็นเต็มแรง ในศูนย์ฯ มีคนเก็บที่ว่างริมกำแพงให้คุณโดยไม่ต้องขอ" },
+        { t: "ซ่อนในห้องน้ำชั้นหนึ่ง ที่ประตูกว้างพอสำหรับวีลแชร์", tier: "weak", d: { hope: -5 }, txt: "ห้องน้ำที่คุณปรับให้เหมาะกับวีลแชร์กลายเป็นที่หลบของคุณ ผนังกระเบื้องหนากว่าที่อื่นในบ้านแต่ก็ไม่มากนัก คุณปิดไฟแล้วกุมวิทยุสื่อสารไว้แน่น" }
+      ]
     }
   ];
 
@@ -978,7 +1001,8 @@ main { padding-top: 22px; }
     ade: { gz: 180, bearing: 275, type: "remote", gzName: "ใจกลางเมืองเชียงใหม่" },
     yaithong: { gz: 55, bearing: 345, type: "rural", gzName: "ใจกลางกรุงเทพฯ" },
     min: { gz: 38, bearing: 235, type: "urban", gzName: "ใจกลางกรุงเทพฯ" },
-    hasan: { gz: 85, bearing: 150, type: "coast", gzName: "ใจกลางเมืองหาดใหญ่" }
+    hasan: { gz: 85, bearing: 150, type: "coast", gzName: "ใจกลางเมืองหาดใหญ่" },
+    ton: { gz: 9, bearing: 300, type: "urban", gzName: "ใจกลางเมืองนครราชสีมา" }
   };
   CHARS.forEach(function (c) { var g = GEO[c.id]; for (var k in g) c[k] = g[k]; });
 
@@ -993,7 +1017,8 @@ main { padding-top: 22px; }
     ade: { skin: "#b9814f", hair: "#17141a", cloth: "#3a5a7a", acc: "akha" },
     yaithong: { skin: "#c9a07a", hair: "#e8e6e0", cloth: "#6a8a5a", acc: "granny" },
     min: { skin: "#b98458", hair: "#17141a", cloth: "#3a6a9a", acc: "capband" },
-    hasan: { skin: "#a6764a", hair: "#17141a", cloth: "#3a7a8a", acc: "kopiah" }
+    hasan: { skin: "#a6764a", hair: "#17141a", cloth: "#3a7a8a", acc: "kopiah" },
+    ton: { skin: "#e0b08a", hair: "#222222", cloth: "#4a4f5a", acc: "headset" }
   };
   function avatar(c) {
     var l = LOOK[c.id], o = '<circle cx="32" cy="32" r="32" class="f-far"/>';
@@ -1008,6 +1033,7 @@ main { padding-top: 22px; }
       case "glasses": o += '<path d="M21 24 Q22 13 32 13 Q42 13 43 24 Q38 18 32 18 Q26 18 21 24z" fill="' + l.hair + '"/><circle cx="27" cy="27" r="3.6" fill="none" stroke="#1a1a1a" stroke-width="1.2"/><circle cx="37" cy="27" r="3.6" fill="none" stroke="#1a1a1a" stroke-width="1.2"/><path d="M30.6 27 h2.8" stroke="#1a1a1a" stroke-width="1.2"/>'; break;
       case "tagbun": o += '<path d="M20 27 Q20 13 32 13 Q44 13 44 27 Q40 19 32 19 Q24 19 20 27z" fill="' + l.hair + '"/><circle cx="32" cy="10" r="5" fill="' + l.hair + '"/><rect x="38" y="48" width="12" height="6" fill="#f3f1e6"/>'; break;
       case "flower": o += '<path d="M19 28 Q17 11 32 11 Q47 11 45 28 L48 46 L41 41 L41 27 Q41 19 32 19 Q23 19 23 27 L23 41 L16 46z" fill="' + l.hair + '"/><circle cx="40" cy="19" r="3.4" fill="#e86a8a"/><circle cx="40" cy="19" r="1.2" fill="#f6d36a"/>'; break;
+      case "headset": o += '<path d="M21 24 Q22 12 32 12 Q42 12 43 24 Q38 17 32 17 Q26 17 21 24z" fill="' + l.hair + '"/><path d="M19 28 Q19 7 32 7 Q45 7 45 28" stroke="#1a1a1a" stroke-width="2.6" fill="none"/><rect x="16" y="25" width="5" height="10" rx="2" fill="#e8c547"/><rect x="43" y="25" width="5" height="10" rx="2" fill="#e8c547"/>'; break;
       case "granny": o += '<path d="M20 27 Q20 14 32 14 Q44 14 44 27 Q40 20 32 20 Q24 20 20 27z" fill="' + l.hair + '"/><circle cx="32" cy="11" r="5" fill="' + l.hair + '"/><path d="M12 64 Q16 50 32 47 Q48 50 52 64z" fill="#b85a6a"/><path d="M25 22 q3 -2 6 0 M33 22 q3 -2 6 0" stroke="#9a7a5a" stroke-width="1" fill="none"/>'; break;
       case "capband": o += '<path d="M20 25 Q20 12 32 12 Q44 12 44 25z" fill="#f3f1e6"/><rect x="19" y="24" width="26" height="3" fill="#cfcabd"/><path d="M24 31 H40 V37 Q32 41 24 37z" fill="#dfe7ea"/>'; break;
       case "kopiah": o += '<path d="M21 22 Q21 11 32 11 Q43 11 43 22z" fill="#1b1b1b"/><rect x="20" y="21" width="24" height="3" fill="#2d2d2d"/><path d="M23 31 Q32 44 41 31 Q41 38 32 41 Q23 38 23 31z" fill="' + l.hair + '"/>'; break;
@@ -1018,7 +1044,7 @@ main { padding-top: 22px; }
   }
 
   /* one of these is drawn at random each run, so no two playthroughs match */
-  var ITEMS = [["plume", "อยู่ในแนวฝุ่นรังสี", "bad"], ["injury", "บาดเจ็บ", "bad"], ["slow", "เดินไม่คล่อง", "bad"], ["bike", "มอเตอร์ไซค์"], ["boat", "เรือประมง"], ["carry", "เด็กหญิงตัวน้อย"], ["gold", "ทองคำ"], ["farm", "ที่ดินทำกิน"], ["radio", "วิทยุไขลาน"], ["kit", "ชุดปฐมพยาบาล"], ["filter", "ชุดกรองน้ำ"], ["ally", "เด็กหญิงกับพ่อ"], ["dog", "สุนัขจร"], ["group", "ชายแปลกหน้า 3 คน"]];
+  var ITEMS = [["plume", "อยู่ในแนวฝุ่นรังสี", "bad"], ["injury", "บาดเจ็บ", "bad"], ["slow", "เดินไม่คล่อง", "bad"], ["wheel", "ใช้วีลแชร์", "bad"], ["bike", "มอเตอร์ไซค์"], ["boat", "เรือประมง"], ["carry", "เด็กหญิงตัวน้อย"], ["gold", "ทองคำ"], ["farm", "ที่ดินทำกิน"], ["radio", "วิทยุไขลาน"], ["kit", "ชุดปฐมพยาบาล"], ["filter", "ชุดกรองน้ำ"], ["ally", "เด็กหญิงกับพ่อ"], ["dog", "สุนัขจร"], ["group", "ชายแปลกหน้า 3 คน"]];
   var EVENTS = [
     {
       when: "วันที่ 2 · 15:20", place: "ที่หลบภัย", day: 2, art: "rain",
@@ -1191,14 +1217,20 @@ main { padding-top: 22px; }
     violence: { kind: "dead", title: "ถูกแย่งชิงทุกอย่าง", body: "เมื่ออาหารกลายเป็นชีวิต ทุกคนเปลี่ยนไป คุณไม่ได้พ่ายแพ้ต่อรังสี แต่พ่ายแพ้ต่อคนที่หิวพอ ๆ กับคุณ" },
     shelter: { kind: "live", title: "ผ่านเข้าด่านศูนย์พักพิง", body: "เครื่องวัดรังสีส่งเสียงเบา ๆ แล้วหยุด เจ้าหน้าที่พยักหน้า คุณได้ผ้าห่ม ซุปร้อน หนึ่งเตียง และชื่อในรายการ ข้างหลังคุณยังมีคนต่อแถวอีกยาว" },
     community: { kind: "live", title: "บ้านหลังเล็กของผู้รอดชีวิต", body: "ผู้รอดชีวิตเริ่มมารวมกันที่ที่หลบภัยของคุณทีละคน ไม่มีใครรู้ว่าทางการจะมาหรือไม่ แต่พวกคุณมีน้ำ มีไฟ และมีกันและกัน" },
-    barely: { kind: "live", title: "ยังหายใจอยู่", body: "คุณรอดมาได้เกือบสิบวัน แต่สภาพไม่เหลือเหมือนเดิม ไม่มีใครรู้ว่าอีกกี่วันที่เหลือ บางครั้ง \"ยังไม่ตาย\" ก็นับเป็นชัยชนะ" }
+    barely: { kind: "live", title: "ยังหายใจอยู่", body: "คุณรอดมาได้เกือบสิบวัน แต่สภาพไม่เหลือเหมือนเดิม ไม่มีใครรู้ว่าอีกกี่วันที่เหลือ บางครั้ง \"ยังไม่ตาย\" ก็นับเป็นชัยชนะ" },
+    leader: { kind: "live", title: "คนที่ทุกคนไว้ใจ", body: "ผู้รอดชีวิตกลุ่มเล็ก ๆ ไม่ได้เลือกคุณเป็นผู้นำ แต่ทุกครั้งที่มีเรื่องต้องตัดสินใจ ทุกสายตาหันมาที่คุณก่อน เพราะพวกเขาจำได้ว่าตอนที่ทุกอย่างพังที่สุด คุณเป็นคนที่เลือกแบ่งปัน" },
+    guardian: { kind: "live", title: "ผู้ปกป้องตัวน้อย", body: "คุณไม่ได้เป็นพ่อหรือแม่ของเธอ แต่เธอเรียกคุณแบบนั้นแล้วโดยไม่รู้ตัว การพาใครสักคนรอดมาด้วยกันกินเสบียงมากกว่าที่คิด แต่ก็ทำให้คุณมีเหตุผลที่จะตื่นขึ้นมาทุกเช้า" },
+    alone: { kind: "live", title: "รอดอยู่คนเดียว", body: "คุณรอดมาได้ด้วยเสบียงที่เก็บไว้ ไม่มีใครมาทวง และไม่มีใครมาเยี่ยม ที่หลบภัยของคุณเงียบกว่าที่ไหน ๆ เสียงเดียวที่ได้ยินคือเสียงลมหายใจของตัวเอง" }
   };
-  var ORDER = ["blast", "rad", "starve", "violence", "shelter", "community", "barely"];
+  var ORDER = ["blast", "rad", "starve", "violence", "shelter", "community", "barely", "leader", "guardian", "alone"];
 
   function pickEnding(dead) {
     if (dead) return deathCause();
+    if (S.f.carry && S.hp >= 25) return "guardian";
+    if (S.f.route === "stay" && S.karma >= 3 && S.hp >= 30) return "leader";
     if (S.f.route === "go" && S.hp >= 40 && S.rad < 70) return "shelter";
     if (S.f.route === "stay" && S.hp >= 30 && S.hope >= 40) return "community";
+    if (S.f.kept && S.karma <= -2) return "alone";
     return "barely";
   }
   function loadSeen() {
@@ -1208,6 +1240,46 @@ main { padding-top: 22px; }
     var a = loadSeen();
     if (a.indexOf(id) < 0) { a.push(id); try { localStorage.setItem(STORE, JSON.stringify(a)); } catch (e) {} }
     return a;
+  }
+
+  /* line chart of the four stats across the run, labelled at the line ends */
+  function chartSvg() {
+    var H = S.hist, n = H.length, W = 400, Ht = 150, L = 8, R = 72, T = 10, B = 24;
+    if (n < 2) return "";
+    var xs = function (i) { return L + (W - L - R) * i / (n - 1); };
+    var ys = function (v) { return T + (Ht - T - B) * (1 - Math.max(0, Math.min(100, v)) / 100); };
+    var series = [
+      { k: "hp", label: "สุขภาพ", cls: "s-ok", f: function (h) { return h.hp; } },
+      { k: "rad", label: "รังสี", cls: "s-alarm2", f: function (h) { return h.rad; } },
+      { k: "hope", label: "ขวัญ", cls: "s-bone", f: function (h) { return h.hope; } },
+      { k: "food", label: "อาหาร", cls: "s-signal", f: function (h) { return h.food / 8 * 100; } }
+    ];
+    var o = '<rect class="f-sky" width="400" height="' + Ht + '"/>';
+    [0, 50, 100].forEach(function (v) { o += '<path class="s-line" d="M' + L + " " + ys(v).toFixed(1) + " H" + (W - R) + '"/>'; });
+    series.forEach(function (s) {
+      o += '<polyline class="' + s.cls + '" points="' + H.map(function (h, i) { return xs(i).toFixed(1) + "," + ys(s.f(h)).toFixed(1); }).join(" ") + '" fill="none"/>';
+      var last = s.f(H[n - 1]);
+      o += '<circle class="' + s.cls.replace("s-", "f-").replace("alarm2", "alarm") + '" cx="' + xs(n - 1).toFixed(1) + '" cy="' + ys(last).toFixed(1) + '" r="3"/>';
+      s.y = ys(last);
+    });
+    // spread end labels so they don't collide
+    var sorted = series.slice().sort(function (a, b) { return a.y - b.y; });
+    var gap = 14, bottom = Ht - B - 2, top = T + 6, m = sorted.length, i;
+    for (i = 1; i < m; i++) if (sorted[i].y - sorted[i - 1].y < gap) sorted[i].y = sorted[i - 1].y + gap;
+    for (i = m - 1; i >= 0; i--) sorted[i].y = Math.min(sorted[i].y, bottom - (m - 1 - i) * gap); // keep inside the bottom edge
+    for (i = 0; i < m; i++) sorted[i].y = Math.max(sorted[i].y, top + i * gap); // and inside the top edge
+    sorted.forEach(function (s) { o += '<text class="t" x="' + (W - R + 10) + '" y="' + (s.y + 4).toFixed(1) + '">' + s.label + "</text>"; });
+    o += '<text class="t-sm" x="' + L + '" y="' + (Ht - 6) + '">วันที่ ' + H[0].day + '</text><text class="t-sm" text-anchor="end" x="' + (W - R) + '" y="' + (Ht - 6) + '">วันที่ ' + H[n - 1].day + "</text>";
+    return '<div class="log"><h3>เส้นทางของคุณ</h3><svg class="art mapsvg" viewBox="0 0 400 ' + Ht + '" role="img" aria-label="กราฟสุขภาพ รังสี ขวัญกำลังใจ และอาหารตลอดเกม" preserveAspectRatio="xMidYMid meet">' + o + "</svg></div>";
+  }
+
+  /* once you have lived a life, you can choose to live it again */
+  function pickHtml() {
+    var seen = loadChars();
+    var list = CHARS.filter(function (c) { return seen.indexOf(c.id) >= 0; });
+    if (!list.length) return "";
+    return '<details class="pick"><summary>เลือกชีวิตที่เคยเล่นแล้ว (' + list.length + "/" + CHARS.length + ')</summary><div class="row">' +
+      list.map(function (c) { return '<button type="button" data-life="' + c.id + '">' + c.name + " · " + c.province + "</button>"; }).join("") + "</div></details>";
   }
 
   /* ---------- flow ---------- */
@@ -1224,9 +1296,13 @@ main { padding-top: 22px; }
       '<li>ทุกการเลือกถูกจดไว้ คนอื่นจะจำสิ่งที่คุณทำ</li>' +
       '<li>' + SC.length + ' ฉาก ใช้เวลาประมาณ 5 นาที มีเหตุการณ์สุ่ม 2 ฉากทุกครั้งที่เล่น</li>' +
       '<li>บางฉากมีเวลาจำกัด แต่คุณอ่านก่อนได้ เวลาเริ่มนับตอนกด "พร้อมแล้ว"</li>' +
-      '<li>ฉากจบ 7 แบบ พร้อมเรตติ้ง S ถึง D</li>' +
+      '<li>ฉากจบ ' + ORDER.length + ' แบบ พร้อมเรตติ้ง S ถึง D</li>' +
       '</ul>' +
-      '<div class="btns"><button class="btn" id="start">สุ่มชีวิตของฉัน</button></div>';
+      '<div class="btns"><button class="btn" id="start">สุ่มชีวิตของฉัน</button></div>' +
+      pickHtml();
+    Array.prototype.forEach.call(stage.querySelectorAll("[data-life]"), function (b) {
+      b.addEventListener("click", function () { S = fresh(b.getAttribute("data-life")); roll(); });
+    });
     $("#start").addEventListener("click", roll);
     $("#start").focus({ preventScroll: true });
   }
@@ -1350,6 +1426,7 @@ main { padding-top: 22px; }
       sfx.hurt();
     }
     var dead = isDead();
+    S.hist.push({ day: sc.day, hp: S.hp, rad: S.rad, food: S.food, hope: S.hope });
     var label = typeof c.t === "function" ? c.t() : c.t;
     stage.innerHTML = head(sc) +
       '<div class="picked">' + (timedOut ? "เวลาหมด · " : "คุณเลือก · ") + label + "</div>" +
@@ -1382,8 +1459,11 @@ main { padding-top: 22px; }
       if (S.f.carry) extra += " เด็กหญิงตัวเล็กที่คุณพามาหลับอยู่บนตักคุณ ตุ๊กตาแขนขาดยังอยู่ในมือเธอ";
       if (S.f.dog) extra += " สุนัขตัวผอมนอนขดอยู่ที่เท้าคุณ มันหนักขึ้นเล็กน้อยตั้งแต่วันแรกที่เจอกัน";
     }
-    var pts = clamp(S.karma, -4, 4) * 2 + S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (S.f.carry ? 8 : 0) + (id === "shelter" || id === "community" ? 15 : 0);
+    var pts = clamp(S.karma, -4, 4) * 2 + S.hp * 0.3 + (100 - S.rad) * 0.3 + S.hope * 0.2 + (S.f.shared ? 10 : 0) + (S.f.ally ? 8 : 0) + (S.f.group ? 8 : 0) + (S.f.dog ? 4 : 0) + (S.f.carry ? 8 : 0) + (id === "shelter" || id === "community" || id === "leader" || id === "guardian" ? 15 : 0);
     var rk = dead ? "D" : pts >= 85 ? "S" : pts >= 70 ? "A" : pts >= 55 ? "B" : "C";
+    // surviving with almost no health can't rate above B, however kind you were
+    if (!dead && S.hp < 25 && (rk === "S" || rk === "A")) rk = "B";
+    if (!dead && S.hp < 12 && rk === "B") rk = "C";
     sfx.sting(!dead);
     var o = dead ? "—" : "1 ใน " + odds();
     var pips = ORDER.map(function (k) { return '<i class="' + (seen.indexOf(k) >= 0 ? "on" : "") + '"></i>'; }).join("");
@@ -1406,6 +1486,7 @@ main { padding-top: 22px; }
       '<div><div class="k">ความดีที่ทำไว้</div><div class="v">' + (S.karma > 0 ? "+" : "") + S.karma + "</div></div>" +
       '<div><div class="k">ห่างจุดระเบิด</div><div class="v">' + S.char.gz + " กม.</div></div>" +
       "</div>" +
+      chartSvg() +
       logHtml +
       '<div class="real"><h3>ถ้าเกิดเรื่องจริง</h3><ul>' +
       "<li>เข้าอาคารที่แข็งแรงทันที ไปที่ห้องตรงกลางตึกหรือใต้ดิน ไกลจากหน้าต่าง</li>" +
